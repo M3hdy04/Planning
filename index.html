@@ -19,12 +19,14 @@
     .container { max-width: 480px; width: 100%; }
     .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
-    .badge { background: #222; border: 1px solid #333; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; }
+    .badges-group { display: flex; gap: 6px; }
+    .badge { background: #222; border: 1px solid #333; padding: 6px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: white; }
     .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .btn-icon { background: white; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
     .day-card { flex: 1; min-width: 55px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; }
     .day-card.active { background: #111; color: white; border-color: #111; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 700; font-size: 1.1rem; }
     .slot-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); position: relative; }
     .slot-header { display: flex; justify-content: space-between; align-items: flex-start; }
     .slot-time { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
@@ -33,7 +35,7 @@
     .btn-action { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.6; }
     .btn-action:hover { opacity: 1; }
     select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-top: 12px; font-size: 0.95rem; background: #f3f4f6; }
-    .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; }
+    .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; margin-bottom: 16px; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
     .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
@@ -49,7 +51,10 @@
       <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;">BASIC FIT • ACCUEIL</div>
       <h1>Planning remplacements</h1>
     </div>
-    <div class="badge" id="agent-count">👥 0</div>
+    <div class="badges-group">
+      <div class="badge" onclick="showTotalModal()">⏱️ Totaux</div>
+      <div class="badge" id="agent-count">👥 0</div>
+    </div>
   </div>
 
   <div class="nav">
@@ -59,6 +64,11 @@
   </div>
 
   <div class="days" id="days-container"></div>
+
+  <div class="section-header">
+    <span id="selected-day-title">Mardi 11 Août</span>
+    <span id="day-covered-count" style="font-size: 0.9rem; color: #22c55e;">0/0 couverts</span>
+  </div>
 
   <div id="slots-list"></div>
 
@@ -117,6 +127,12 @@
     container.innerHTML = '';
     const startOfWeek = getMonday(currentDate);
     
+    // Mettre à jour le label de la semaine
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    const options = { day: 'numeric', month: 'long', year: 'numeric' };
+    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', options)}`;
+
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
       d.setDate(d.getDate() + i);
@@ -136,6 +152,13 @@
     const list = document.getElementById('slots-list');
     list.innerHTML = '';
     const daySlots = slots.filter(s => s.date_str === selectedDateStr);
+
+    // Titre de la date sélectionnée
+    const selDate = new Date(selectedDateStr + 'T00:00:00');
+    document.getElementById('selected-day-title').innerText = selDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const covered = daySlots.filter(s => s.agent_id !== null).length;
+    document.getElementById('day-covered-count').innerText = `${covered}/${daySlots.length} couverts`;
 
     if (daySlots.length === 0) {
       list.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">Aucun créneau ce jour-là.</div>`;
@@ -217,6 +240,19 @@
       await db.from('slots').delete().eq('id', id);
       await fetchSlots();
     }
+  }
+
+  function showTotalModal() {
+    let totalHours = 0;
+    slots.forEach(s => {
+      if (s.start && s.end) {
+        const [sh, sm] = s.start.split(':').map(Number);
+        const [eh, em] = s.end.split(':').map(Number);
+        const diff = (eh * 60 + em) - (sh * 60 + sm);
+        if (diff > 0) totalHours += diff / 60;
+      }
+    });
+    alert(`Total des heures planifiées : ${totalHours.toFixed(1)}h`);
   }
 
   function getMonday(d) {
