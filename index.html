@@ -14,8 +14,11 @@
       --shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; justify-content: center; }
-    .container { max-width: 800px; width: 100%; }
+    body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
+    
+    /* MODIFICATION ICI : On élargit pour prendre toute la largeur sur PC */
+    .container { width: 100%; max-width: 1400px; margin: 0 auto; }
+    
     .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
     .badges-group { display: flex; gap: 6px; }
@@ -23,13 +26,17 @@
     .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .btn-icon { background: white; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
-    .day-card { flex: 1; min-width: 55px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; position: relative; }
+    .day-card { flex: 1; min-width: 65px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 4px; text-align: center; cursor: pointer; position: relative; }
     .day-card.active { background: #111; color: white; border-color: #111; }
     .day-progress { position: absolute; bottom: 4px; left: 6px; right: 6px; height: 3px; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
     .day-progress-bar { height: 100%; background: #22c55e; width: 0%; }
     .day-card.active .day-progress { background: #333; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 700; font-size: 1.1rem; }
-    .slot-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); position: relative; }
+    
+    /* Grille des créneaux pour s'étaler sur grand écran */
+    #slots-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+    
+    .slot-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 0; box-shadow: var(--shadow); position: relative; }
     .slot-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
     .slot-time { font-size: 1.2rem; font-weight: 700; }
     .slot-club { color: #666; font-size: 0.9rem; margin-top: 2px; }
@@ -40,11 +47,11 @@
     .select-wrapper::before { content: ''; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--dot-color, #ccc); z-index: 2; pointer-events: none; }
     select { width: 100%; padding: 10px 10px 10px 30px; border-radius: 10px; border: none; font-size: 0.95rem; background: #f3f4f6; appearance: none; cursor: pointer; font-weight: 500; }
     
-    .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; margin-bottom: 16px; }
+    .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; margin-bottom: 16px; max-width: 500px; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
     .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
-    .btn-submit { width: 100%; background: #111; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .btn-submit { width: 100%; background: #111; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; max-width: 300px; }
     .btn-cancel { width: 100%; background: transparent; color: #666; border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
     
     /* Modal Styles */
@@ -108,7 +115,7 @@
       <label>Club</label>
       <input type="text" id="form-club" class="form-control" placeholder="ex. Thillois, Cernay...">
     </div>
-    <button class="btn-submit" onclick="saveSlot()">Enregistrer</button>
+    <button class="btn-submit" onclick="saveSlot()" style="max-width: none;">Enregistrer</button>
     <button class="btn-cancel" onclick="hideForm()">Annuler</button>
   </div>
 </div>
@@ -239,7 +246,7 @@
     document.getElementById('day-covered-count').innerText = `${covered}/${daySlots.length} couverts`;
 
     if (daySlots.length === 0) {
-      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">Aucun créneau ce jour-là.</div>`;
+      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px; grid-column: 1 / -1;">Aucun créneau ce jour-là.</div>`;
       return;
     }
 
@@ -336,7 +343,6 @@
     }
   }
 
-  // Gestion des agents
   function openAgentsModal() {
     document.getElementById('agents-modal').style.display = 'flex';
     renderAgentsManageList();
@@ -385,7 +391,6 @@
     });
   }
 
-  // Gestion des Totaux
   function openTotalModal() {
     modalDate = new Date(currentDate);
     document.getElementById('total-modal').style.display = 'flex';
