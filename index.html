@@ -185,7 +185,7 @@
     
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 6);
-    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'})}`;
+    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric' })}`;
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
