@@ -10,7 +10,6 @@
       --bg: #f8f9fa;
       --card: #ffffff;
       --text: #1a1a1a;
-      --accent: #22c55e;
       --border: #e5e7eb;
       --shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
@@ -24,23 +23,44 @@
     .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .btn-icon { background: white; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
-    .day-card { flex: 1; min-width: 55px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; }
+    .day-card { flex: 1; min-width: 55px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; position: relative; }
     .day-card.active { background: #111; color: white; border-color: #111; }
+    .day-progress { position: absolute; bottom: 4px; left: 6px; right: 6px; height: 3px; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
+    .day-progress-bar { height: 100%; background: #22c55e; width: 0%; }
+    .day-card.active .day-progress { background: #333; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 700; font-size: 1.1rem; }
     .slot-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); position: relative; }
     .slot-header { display: flex; justify-content: space-between; align-items: flex-start; }
     .slot-time { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
     .slot-club { color: #666; font-size: 0.9rem; display: flex; align-items: center; gap: 4px; }
-    .actions { display: flex; gap: 8px; }
+    .slot-actions { display: flex; gap: 8px; align-items: center; }
     .btn-action { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.6; }
     .btn-action:hover { opacity: 1; }
-    select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-top: 12px; font-size: 0.95rem; background: #f3f4f6; }
+    
+    .select-wrapper { position: relative; margin-top: 12px; }
+    .select-wrapper::before { content: ''; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--dot-color, #ccc); z-index: 2; pointer-events: none; }
+    select { width: 100%; padding: 10px 10px 10px 28px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.95rem; background: #f3f4f6; appearance: none; cursor: pointer; }
+    
     .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; margin-bottom: 16px; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
     .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
     .btn-submit { width: 100%; background: #111; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
     .btn-cancel { width: 100%; background: transparent; color: #666; border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    
+    /* Modal Totaux Styles */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
+    .modal-card { background: white; width: 100%; max-width: 420px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; max-height: 90vh; overflow-y: auto; }
+    .modal-close { position: absolute; top: 16px; right: 16px; background: #f3f4f6; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+    .toggle-container { display: flex; background: #f3f4f6; border-radius: 12px; padding: 4px; margin-bottom: 16px; }
+    .toggle-btn { flex: 1; padding: 8px; text-align: center; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #666; }
+    .toggle-btn.active { background: #111; color: #a3e635; }
+    .total-banner { background: #111; color: white; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; }
+    .total-banner h2 { color: #a3e635; margin: 0 0 4px 0; font-size: 2rem; }
+    .total-banner p { margin: 0; font-size: 0.85rem; opacity: 0.8; }
+    .agent-row { display: flex; justify-content: space-between; align-items: center; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; font-weight: 600; }
+    .agent-info { display: flex; align-items: center; gap: 10px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
   </style>
 </head>
 <body>
@@ -52,7 +72,7 @@
       <h1>Planning remplacements</h1>
     </div>
     <div class="badges-group">
-      <div class="badge" onclick="showTotalModal()">⏱️ Totaux</div>
+      <div class="badge" onclick="openTotalModal()">⏱️ Totaux</div>
       <div class="badge" id="agent-count">👥 0</div>
     </div>
   </div>
@@ -94,6 +114,36 @@
   </div>
 </div>
 
+<!-- Modal Totaux -->
+<div class="modal-overlay" id="total-modal" style="display: none;">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeTotalModal()">✕</button>
+    <h3 style="margin-top:0; margin-bottom: 16px;">Totaux d'heures</h3>
+    
+    <div class="toggle-container">
+      <button class="toggle-btn" id="btn-semaine" onclick="switchTotalTab('semaine')">Semaine</button>
+      <button class="toggle-btn active" id="btn-mois" onclick="switchTotalTab('mois')">Mois</button>
+    </div>
+
+    <div class="nav" style="margin-bottom: 12px;">
+      <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
+      <strong id="modal-period-label">Août 2026</strong>
+      <button class="btn-icon" onclick="changeModalDate(1)">›</button>
+    </div>
+
+    <div class="total-banner">
+      <h2 id="modal-total-hours">0h00</h2>
+      <p>heures couvertes au total</p>
+    </div>
+
+    <div id="modal-agents-list"></div>
+
+    <div style="font-size: 0.75rem; color: #888; text-align: center; margin-top: 16px;">
+      Chaque créneau inclut 30 min de pointage effectuées avant le début du service.
+    </div>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = "https://inyonzcwfjhzuzlhumzj.supabase.co";
   const SUPABASE_KEY = "sb_publishable_s_-vJjAZgAbMy27Oh0RDpg_hxcJV1KX";
@@ -103,6 +153,11 @@
   let selectedDateStr = new Date().toISOString().split('T')[0];
   let agents = [];
   let slots = [];
+  
+  let modalTab = 'mois';
+  let modalDate = new Date();
+
+  const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
   async function init() {
     await fetchAgents();
@@ -119,6 +174,7 @@
   async function fetchSlots() {
     const { data } = await db.from('slots').select('*');
     slots = data || [];
+    renderWeek();
     renderSlots();
   }
 
@@ -127,11 +183,9 @@
     container.innerHTML = '';
     const startOfWeek = getMonday(currentDate);
     
-    // Mettre à jour le label de la semaine
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 6);
-    const options = { day: 'numeric', month: 'long', year: 'numeric' };
-    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', options)}`;
+    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric' })}}`;
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
@@ -140,9 +194,20 @@
       const dayName = d.toLocaleDateString('fr-FR', { weekday: 'short' });
       const dayNum = d.getDate();
 
+      const daySlots = slots.filter(s => s.date_str === dateStr);
+      const totalDay = daySlots.length;
+      const coveredDay = daySlots.filter(s => s.agent_id !== null).length;
+      const percent = totalDay > 0 ? (coveredDay / totalDay) * 100 : 0;
+
       const card = document.createElement('div');
       card.className = `day-card ${dateStr === selectedDateStr ? 'active' : ''}`;
-      card.innerHTML = `<div style="font-size:0.8rem">${dayName}</div><strong>${dayNum}</strong>`;
+      card.innerHTML = `
+        <div style="font-size:0.8rem">${dayName}</div>
+        <strong>${dayNum}</strong>
+        <div class="day-progress">
+          <div class="day-progress-bar" style="width: ${percent}%;"></div>
+        </div>
+      `;
       card.onclick = () => { selectedDateStr = dateStr; renderWeek(); renderSlots(); };
       container.appendChild(card);
     }
@@ -153,7 +218,6 @@
     list.innerHTML = '';
     const daySlots = slots.filter(s => s.date_str === selectedDateStr);
 
-    // Titre de la date sélectionnée
     const selDate = new Date(selectedDateStr + 'T00:00:00');
     document.getElementById('selected-day-title').innerText = selDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -170,9 +234,17 @@
       card.className = 'slot-card';
       
       let agentOptions = `<option value="">— À pourvoir —</option>`;
-      agents.forEach(a => {
-        agentOptions += `<option value="${a.id}" ${s.agent_id == a.id ? 'selected' : ''}>${a.name}</option>`;
+      let selectedAgentColor = '#ccc';
+
+      agents.forEach((a, index) => {
+        const isSelected = s.agent_id == a.id;
+        if (isSelected) {
+          selectedAgentColor = agentColors[index % agentColors.length];
+        }
+        agentOptions += `<option value="${a.id}" ${isSelected ? 'selected' : ''}>${a.name}</option>`;
       });
+
+      card.style.setProperty('--dot-color', selectedAgentColor);
 
       card.innerHTML = `
         <div class="slot-header">
@@ -180,12 +252,14 @@
             <div class="slot-time">${s.start} – ${s.end}</div>
             <div class="slot-club">📍 ${s.club || 'Non précisé'}</div>
           </div>
-          <div class="actions">
+          <div class="slot-actions">
             <button class="btn-action" onclick="editSlot(${s.id})">✏️</button>
             <button class="btn-action" onclick="deleteSlot(${s.id})">🗑️</button>
           </div>
         </div>
-        <select onchange="updateAgent(${s.id}, this.value)">${agentOptions}</select>
+        <div class="select-wrapper">
+          <select onchange="updateAgent(${s.id}, this.value)">${agentOptions}</select>
+        </div>
       `;
       list.appendChild(card);
     });
@@ -202,6 +276,9 @@
     } else {
       document.getElementById('form-title').innerText = "Nouveau créneau";
       document.getElementById('edit-id').value = '';
+      document.getElementById('form-start').value = '09:00';
+      document.getElementById('form-end').value = '13:00';
+      document.getElementById('form-club').value = '';
     }
   }
 
@@ -242,17 +319,99 @@
     }
   }
 
-  function showTotalModal() {
-    let totalHours = 0;
-    slots.forEach(s => {
-      if (s.start && s.end) {
+  function openTotalModal() {
+    modalDate = new Date(currentDate);
+    document.getElementById('total-modal').style.display = 'flex';
+    updateModalContent();
+  }
+
+  function closeTotalModal() {
+    document.getElementById('total-modal').style.display = 'none';
+  }
+
+  function switchTotalTab(tab) {
+    modalTab = tab;
+    document.getElementById('btn-semaine').className = `toggle-btn ${tab === 'semaine' ? 'active' : ''}`;
+    document.getElementById('btn-mois').className = `toggle-btn ${tab === 'mois' ? 'active' : ''}`;
+    updateModalContent();
+  }
+
+  function changeModalDate(direction) {
+    if (modalTab === 'mois') {
+      modalDate.setMonth(modalDate.getMonth() + direction);
+    } else {
+      modalDate.setDate(modalDate.getDate() + (direction * 7));
+    }
+    updateModalContent();
+  }
+
+  function updateModalContent() {
+    const labelEl = document.getElementById('modal-period-label');
+    const totalHoursEl = document.getElementById('modal-total-hours');
+    const agentsListEl = document.getElementById('modal-agents-list');
+
+    let filteredSlots = [];
+
+    if (modalTab === 'mois') {
+      const year = modalDate.getFullYear();
+      const month = modalDate.getMonth();
+      labelEl.innerText = modalDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      
+      filteredSlots = slots.filter(s => {
+        const d = new Date(s.date_str);
+        return d.getFullYear() === year && d.getMonth() === month;
+      });
+    } else {
+      const startOfWeek = getMonday(modalDate);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      labelEl.innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'})}`;
+
+      filteredSlots = slots.filter(s => {
+        const d = new Date(s.date_str);
+        return d >= startOfWeek && d <= endOfWeek;
+      });
+    }
+
+    let agentHours = {};
+    agents.forEach(a => agentHours[a.id] = { name: a.name, minutes: 0 });
+
+    let totalMins = 0;
+    filteredSlots.forEach(s => {
+      if (s.start && s.end && s.agent_id && agentHours[s.agent_id]) {
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
         const diff = (eh * 60 + em) - (sh * 60 + sm);
-        if (diff > 0) totalHours += diff / 60;
+        if (diff > 0) {
+          agentHours[s.agent_id].minutes += diff;
+          totalMins += diff;
+        }
       }
     });
-    alert(`Total des heures planifiées : ${totalHours.toFixed(1)}h`);
+
+    const totalH = Math.floor(totalMins / 60);
+    const totalM = totalMins % 60;
+    totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
+
+    agentsListEl.innerHTML = '';
+    const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
+
+    sortedAgents.forEach((ag, index) => {
+      const h = Math.floor(ag.minutes / 60);
+      const m = ag.minutes % 60;
+      const color = agentColors[index % agentColors.length];
+
+      const row = document.createElement('div');
+      row.className = 'agent-row';
+      row.innerHTML = `
+        <div class="agent-info">
+          <div class="dot" style="background: ${color};"></div>
+          <span>${ag.name}</span>
+        </div>
+        <span>${h}h${m < 10 ? '0' : ''}${m}</span>
+      `;
+      agentsListEl.appendChild(row);
+    });
   }
 
   function getMonday(d) {
