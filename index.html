@@ -34,7 +34,7 @@
     .slot-time { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
     .slot-club { color: #666; font-size: 0.9rem; display: flex; align-items: center; gap: 4px; }
     .slot-actions { display: flex; gap: 8px; align-items: center; }
-    .btn-action { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.6; padding: 0; }
+    .btn-action { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.6; padding: 4px; }
     .btn-action:hover { opacity: 1; }
     
     .select-wrapper { position: relative; margin-top: 12px; }
@@ -185,7 +185,7 @@
     
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 6);
-    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric' })}`;
+    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'})}`;
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
@@ -253,12 +253,12 @@
             <div class="slot-club">📍 ${s.club || 'Non précisé'}</div>
           </div>
           <div class="slot-actions">
-            <button class="btn-action" onclick="editSlot(${s.id})" title="Modifier">✏️</button>
-            <button class="btn-action" onclick="deleteSlot(${s.id})" title="Supprimer">🗑️</button>
+            <button class="btn-action" onclick="editSlot('${s.id}')">✏️</button>
+            <button class="btn-action" onclick="deleteSlot('${s.id}')">🗑️</button>
           </div>
         </div>
         <div class="select-wrapper">
-          <select onchange="updateAgent(${s.id}, this.value)">${agentOptions}</select>
+          <select onchange="updateAgent('${s.id}', this.value)">${agentOptions}</select>
         </div>
       `;
       list.appendChild(card);
@@ -266,7 +266,10 @@
   }
 
   function showForm(slot = null) {
-    document.getElementById('slot-form').style.display = 'block';
+    const formCard = document.getElementById('slot-form');
+    formCard.style.display = 'block';
+    formCard.scrollIntoView({ behavior: 'smooth' });
+
     if (slot) {
       document.getElementById('form-title').innerText = "Modifier le créneau";
       document.getElementById('edit-id').value = slot.id;
@@ -303,8 +306,10 @@
   }
 
   function editSlot(id) {
-    const slot = slots.find(s => s.id === id);
-    if (slot) showForm(slot);
+    const slot = slots.find(s => String(s.id) === String(id));
+    if (slot) {
+      showForm(slot);
+    }
   }
 
   async function updateAgent(slotId, agentId) {
