@@ -1,531 +1,237 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Planning Remplacements - Basic Fit</title>
-  
-  <!-- Supabase -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planning Remplacements</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <!-- React & ReactDOM -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap');
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 0; background-color: #F5F5F1; font-family: 'Inter', system-ui, sans-serif; }
-    input, select, button { font-family: inherit; }
+    :root {
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --accent: #22c55e;
+      --border: #e5e7eb;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; justify-content: center; }
+    .container { max-width: 480px; width: 100%; }
+    .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge { background: #222; border: 1px solid #333; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; }
+    .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .btn-icon { background: white; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
+    .day-card { flex: 1; min-width: 55px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; }
+    .day-card.active { background: #111; color: white; border-color: #111; }
+    .slot-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); position: relative; }
+    .slot-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .slot-time { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+    .slot-club { color: #666; font-size: 0.9rem; display: flex; align-items: center; gap: 4px; }
+    .actions { display: flex; gap: 8px; }
+    .btn-action { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.6; }
+    .btn-action:hover { opacity: 1; }
+    select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-top: 12px; font-size: 0.95rem; background: #f3f4f6; }
+    .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
+    .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+    .btn-submit { width: 100%; background: #111; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .btn-cancel { width: 100%; background: transparent; color: #666; border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
   </style>
 </head>
 <body>
-  <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, useCallback } = React;
+<div class="container">
+  <div class="header">
+    <div>
+      <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;">BASIC FIT • ACCUEIL</div>
+      <h1>Planning remplacements</h1>
+    </div>
+    <div class="badge" id="agent-count">👥 0</div>
+  </div>
 
-    const SUPABASE_URL = "https://inyonzcwfjhzuzlhumzj.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_s_-vJjAZgAbMy27Oh0RDpg_hxcJV1KX";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <div class="nav">
+    <button class="btn-icon" onclick="changeWeek(-1)">‹</button>
+    <strong id="week-label">10 – 16 août 2026</strong>
+    <button class="btn-icon" onclick="changeWeek(1)">›</button>
+  </div>
 
-    const POINTAGE_MINUTES = 30;
-    const LIME = "#D7FF3F";
-    const INK = "#14151A";
-    const BG = "#F5F5F1";
-    const CARD = "#FFFFFF";
-    const BORDER = "#E7E7E2";
-    const MUTED = "#8A8D93";
-    const GREEN = "#20C171";
-    const CORAL = "#FF5C5C";
+  <div class="days" id="days-container"></div>
 
-    const AGENT_COLORS = ["#D7FF3F", "#5CC8FF", "#FF9F5C", "#C89CFF", "#FF5C9E", "#5CFFB0"];
-    const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-    const MONTH_LABELS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  <div id="slots-list"></div>
 
-    function pad(n) { return String(n).padStart(2, "0"); }
-    function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-    function isSameDate(a, b) { return toDateStr(a) === toDateStr(b); }
-    function getMonday(d) {
-      const date = new Date(d);
-      const day = date.getDay();
-      const diff = day === 0 ? -6 : 1 - day;
-      date.setDate(date.getDate() + diff);
-      date.setHours(0, 0, 0, 0);
-      return date;
+  <button class="btn-submit" onclick="showForm()">+ Ajouter un créneau</button>
+
+  <!-- Formulaire d'ajout / modification -->
+  <div class="form-card" id="slot-form" style="display: none;">
+    <h3 id="form-title" style="margin-top:0;">Nouveau créneau</h3>
+    <input type="hidden" id="edit-id">
+    <div class="form-group">
+      <label>Début / Fin</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="time" id="form-start" class="form-control" value="09:00">
+        <input type="time" id="form-end" class="form-control" value="13:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Club</label>
+      <input type="text" id="form-club" class="form-control" placeholder="ex. Thillois, Cernay...">
+    </div>
+    <button class="btn-submit" onclick="saveSlot()">Enregistrer</button>
+    <button class="btn-cancel" onclick="hideForm()">Annuler</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "TON_URL_SUPABASE";
+  const SUPABASE_KEY = "TA_CLE_ANON_SUPABASE";
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentDate = new Date();
+  let selectedDateStr = new Date().toISOString().split('T')[0];
+  let agents = [];
+  let slots = [];
+
+  async function init() {
+    await fetchAgents();
+    await fetchSlots();
+    renderWeek();
+  }
+
+  async function fetchAgents() {
+    const { data } = await db.from('agents').select('*');
+    agents = data || [];
+    document.getElementById('agent-count').innerText = `👥 ${agents.length}`;
+  }
+
+  async function fetchSlots() {
+    const { data } = await db.from('slots').select('*');
+    slots = data || [];
+    renderSlots();
+  }
+
+  function renderWeek() {
+    const container = document.getElementById('days-container');
+    container.innerHTML = '';
+    const startOfWeek = getMonday(currentDate);
+    
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayName = d.toLocaleDateString('fr-FR', { weekday: 'short' });
+      const dayNum = d.getDate();
+
+      const card = document.createElement('div');
+      card.className = `day-card ${dateStr === selectedDateStr ? 'active' : ''}`;
+      card.innerHTML = `<div style="font-size:0.8rem">${dayName}</div><strong>${dayNum}</strong>`;
+      card.onclick = () => { selectedDateStr = dateStr; renderWeek(); renderSlots(); };
+      container.appendChild(card);
     }
-    function addDays(d, n) {
-      const date = new Date(d);
-      date.setDate(date.getDate() + n);
-      return date;
-    }
-    function getMonthDates(d) {
-      const year = d.getFullYear(), month = d.getMonth();
-      const days = new Date(year, month + 1, 0).getDate();
-      return Array.from({ length: days }, (_, i) => new Date(year, month, i + 1));
-    }
-    function slotMinutes(slot) {
-      if (!slot.start || !slot.end) return 0;
-      const [sh, sm] = slot.start.split(":").map(Number);
-      const [eh, em] = slot.end.split(":").map(Number);
-      let start = sh * 60 + sm;
-      let end = eh * 60 + em;
-      if (end <= start) end += 24 * 60;
-      return (end - start) + POINTAGE_MINUTES;
-    }
-    function minutesToHM(min) {
-      const h = Math.floor(min / 60);
-      const m = min % 60;
-      return `${h}h${pad(m)}`;
+  }
+
+  function renderSlots() {
+    const list = document.getElementById('slots-list');
+    list.innerHTML = '';
+    const daySlots = slots.filter(s => s.date_str === selectedDateStr);
+
+    if (daySlots.length === 0) {
+      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px;">Aucun créneau ce jour-là.</div>`;
+      return;
     }
 
-    function App() {
-      const [weekStart, setWeekStart] = useState(getMonday(new Date()));
-      const [selectedIdx, setSelectedIdx] = useState(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
-      const [agents, setAgents] = useState([]);
-      const [slotsByDate, setSlotsByDate] = useState({});
-      const [loading, setLoading] = useState(true);
-      const [activePanel, setActivePanel] = useState(null); 
-      const [newAgentName, setNewAgentName] = useState("");
-      const [showAddSlot, setShowAddSlot] = useState(false);
-      const [newSlot, setNewSlot] = useState({ start: "09:00", end: "13:00", club: "" });
-      const [error, setError] = useState("");
-      const [totalsScope, setTotalsScope] = useState("week"); 
-      const [totalsMonth, setTotalsMonth] = useState(new Date());
-      const [totalsLoading, setTotalsLoading] = useState(false);
+    daySlots.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'slot-card';
+      
+      let agentOptions = `<option value="">— À pourvoir —</option>`;
+      agents.forEach(a => {
+        agentOptions += `<option value="${a.id}" ${s.agent_id == a.id ? 'selected' : ''}>${a.name}</option>`;
+      });
 
-      const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-      const selectedDate = weekDates[selectedIdx];
-      const selectedDateStr = toDateStr(selectedDate);
-
-      const loadAgents = async () => {
-        const { data, error } = await supabase.from('agents').select('*').order('id', { ascending: true });
-        if (!error && data) setAgents(data);
-      };
-
-      useEffect(() => { loadAgents(); }, []);
-
-      const loadDates = useCallback(async (dates, setLoadingFn) => {
-        if (setLoadingFn) setLoadingFn(true);
-        const dateStrings = dates.map(d => toDateStr(d));
-        
-        const { data, error } = await supabase
-          .from('slots')
-          .select('*')
-          .in('date_str', dateStrings);
-
-        const entries = {};
-        dateStrings.forEach(ds => { entries[ds] = []; });
-
-        if (!error && data) {
-          data.forEach(slot => {
-            if (entries[slot.date_str]) {
-              entries[slot.date_str].push(slot);
-            }
-          });
-        }
-
-        setSlotsByDate((prev) => ({ ...prev, ...entries }));
-        if (setLoadingFn) setLoadingFn(false);
-      }, []);
-
-      useEffect(() => { loadDates(weekDates, setLoading); }, [weekStart]);
-
-      useEffect(() => {
-        if (activePanel === "totals" && totalsScope === "month") {
-          loadDates(getMonthDates(totalsMonth), setTotalsLoading);
-        }
-      }, [activePanel, totalsScope, totalsMonth]);
-
-      async function addAgent() {
-        const name = newAgentName.trim();
-        if (!name) return;
-        const color = AGENT_COLORS[agents.length % AGENT_COLORS.length];
-
-        const { data, error } = await supabase.from('agents').insert([{ name, color }]).select();
-        if (error) {
-          setError("Erreur lors de l'ajout de l'agent.");
-        } else if (data) {
-          setAgents([...agents, data[0]]);
-          setNewAgentName("");
-        }
-      }
-
-      async function deleteAgent(id) {
-        const { error } = await supabase.from('agents').delete().eq('id', id);
-        if (!error) {
-          setAgents(agents.filter((a) => a.id !== id));
-        } else {
-          setError("Impossible de supprimer cet agent.");
-        }
-      }
-
-      async function addSlot() {
-        if (!newSlot.start || !newSlot.end) return;
-
-        const slotToInsert = {
-          date_str: selectedDateStr,
-          start: newSlot.start,
-          end: newSlot.end,
-          club: newSlot.club.trim(),
-          agent_id: null
-        };
-
-        const { data, error } = await supabase.from('slots').insert([slotToInsert]).select();
-
-        if (error) {
-          setError("Erreur lors de la création du créneau.");
-        } else if (data) {
-          const updated = [...(slotsByDate[selectedDateStr] || []), data[0]];
-          updated.sort((a, b) => a.start.localeCompare(b.start));
-          setSlotsByDate(prev => ({ ...prev, [selectedDateStr]: updated }));
-          setNewSlot({ start: "09:00", end: "13:00", club: "" });
-          setShowAddSlot(false);
-        }
-      }
-
-      async function assignAgent(slotId, agentId) {
-        const targetAgentId = agentId ? parseInt(agentId, 10) : null;
-        const { error } = await supabase.from('slots').update({ agent_id: targetAgentId }).eq('id', slotId);
-
-        if (!error) {
-          const updated = (slotsByDate[selectedDateStr] || []).map((s) =>
-            s.id === slotId ? { ...s, agent_id: targetAgentId } : s
-          );
-          setSlotsByDate(prev => ({ ...prev, [selectedDateStr]: updated }));
-        } else {
-          setError("Erreur lors de l'assignation de l'agent.");
-        }
-      }
-
-      async function deleteSlot(slotId) {
-        const { error } = await supabase.from('slots').delete().eq('id', slotId);
-        if (!error) {
-          const updated = (slotsByDate[selectedDateStr] || []).filter((s) => s.id !== slotId);
-          setSlotsByDate(prev => ({ ...prev, [selectedDateStr]: updated }));
-        } else {
-          setError("Erreur lors de la suppression du créneau.");
-        }
-      }
-
-      function coverage(dateStr) {
-        const slots = slotsByDate[dateStr] || [];
-        const filled = slots.filter((s) => s.agent_id).length;
-        return { filled, total: slots.length };
-      }
-
-      function agentById(id) { return agents.find((a) => a.id === id); }
-
-      function computeTotals(dates) {
-        const totals = {};
-        let openCount = 0;
-        dates.forEach((d) => {
-          const slots = slotsByDate[toDateStr(d)] || [];
-          slots.forEach((s) => {
-            if (s.agent_id) {
-              totals[s.agent_id] = (totals[s.agent_id] || 0) + slotMinutes(s);
-            } else {
-              openCount += 1;
-            }
-          });
-        });
-        return { totals, openCount };
-      }
-
-      const daySlots = [...(slotsByDate[selectedDateStr] || [])].sort((a, b) => a.start.localeCompare(b.start));
-      const todayCoverage = coverage(selectedDateStr);
-      const weekLabel = `${weekDates[0].getDate()} – ${weekDates[6].getDate()} ${MONTH_LABELS[weekDates[6].getMonth()]} ${weekDates[6].getFullYear()}`;
-
-      return (
-        <div style={{ minHeight: "100vh", background: BG, fontFamily: "'Inter', system-ui, sans-serif", color: INK, paddingBottom: 40 }}>
-          {/* Header */}
-          <div style={{ background: INK, padding: "22px 18px 26px", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: LIME, opacity: 0.15 }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" }}>
-              <div>
-                <div style={{ fontFamily: "'Archivo Black', system-ui", fontSize: 11, letterSpacing: 2, color: LIME, marginBottom: 4 }}>BASIC FIT · ACCUEIL</div>
-                <h1 style={{ fontFamily: "'Archivo Black', system-ui", fontSize: 24, color: "#fff", margin: 0, lineHeight: 1.1 }}>Planning<br />remplacements</h1>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setActivePanel("totals")} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "8px 12px", display: "flex", alignItems: "center", gap: 6, color: "#fff" }}>
-                  <span>⏱️</span> <span style={{ fontSize: 13, fontWeight: 600 }}>Totaux</span>
-                </button>
-                <button onClick={() => setActivePanel("agents")} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "8px 12px", display: "flex", alignItems: "center", gap: 6, color: "#fff" }}>
-                  <span>👥</span> <span style={{ fontSize: 13, fontWeight: 600 }}>{agents.length}</span>
-                </button>
-              </div>
-            </div>
+      card.innerHTML = `
+        <div class="slot-header">
+          <div>
+            <div class="slot-time">${s.start} – ${s.end}</div>
+            <div class="slot-club">📍 ${s.club || 'Non précisé'}</div>
           </div>
-
-          {/* Nav Semaine */}
-          <div style={{ padding: "16px 16px 0" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 8, padding: "6px 12px", fontWeight: "bold" }}>‹</button>
-              <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{weekLabel}</span>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 8, padding: "6px 12px", fontWeight: "bold" }}>›</button>
-            </div>
-
-            {/* Jours */}
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-              {weekDates.map((d, i) => {
-                const dStr = toDateStr(d);
-                const cov = coverage(dStr);
-                const isSelected = i === selectedIdx;
-                const isToday = isSameDate(d, new Date());
-                const pct = cov.total ? cov.filled / cov.total : 0;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedIdx(i)}
-                    style={{
-                      minWidth: 56,
-                      flexShrink: 0,
-                      border: isSelected ? `2px solid ${INK}` : `2px solid ${BORDER}`,
-                      background: isSelected ? INK : CARD,
-                      borderRadius: 12,
-                      padding: "8px 6px 6px",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? LIME : MUTED, letterSpacing: 0.5 }}>{DAY_LABELS[i]}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: isSelected ? "#fff" : INK, margin: "2px 0" }}>
-                      {d.getDate()}{isToday && <span style={{ color: isSelected ? LIME : "#FF5C5C" }}>•</span>}
-                    </div>
-                    <div style={{ height: 4, borderRadius: 2, background: isSelected ? "rgba(255,255,255,0.2)" : "#EFEFEA", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct * 100}%`, background: cov.total === 0 ? "transparent" : pct === 1 ? GREEN : LIME }} />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+          <div class="actions">
+            <button class="btn-action" onclick="editSlot(${s.id})">✏️</button>
+            <button class="btn-action" onclick="deleteSlot(${s.id})">🗑️</button>
           </div>
-
-          {error && (
-            <div style={{ margin: "14px 16px 0", background: "#FFF0F0", border: `1px solid ${CORAL}`, borderRadius: 10, padding: "10px 12px", display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-              <span style={{ flex: 1 }}>{error}</span>
-              <button onClick={() => setError("")} style={{ background: "none", border: "none" }}>✕</button>
-            </div>
-          )}
-
-          {/* Créneaux */}
-          <div style={{ padding: "18px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, textTransform: "capitalize" }}>
-                {selectedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-              </h2>
-              <span style={{ fontSize: 12, fontWeight: 700, color: todayCoverage.total && todayCoverage.filled === todayCoverage.total ? GREEN : MUTED }}>
-                {todayCoverage.filled}/{todayCoverage.total} couverts
-              </span>
-            </div>
-
-            {loading ? (
-              <div style={{ color: MUTED, fontSize: 14 }}>Chargement…</div>
-            ) : daySlots.length === 0 ? (
-              <div style={{ background: CARD, border: `2px dashed ${BORDER}`, borderRadius: 14, padding: "28px 16px", textAlign: "center", color: MUTED, fontSize: 13.5 }}>
-                Aucun créneau ce jour-là.<br />Ajoute le premier créneau à couvrir.
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {daySlots.map((slot) => {
-                  const agent = agentById(slot.agent_id);
-                  return (
-                    <div key={slot.id} style={{ background: CARD, border: `2px solid ${agent ? BORDER : CORAL}`, borderRadius: 14, padding: 12 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div>
-                          <div style={{ fontSize: 16, fontWeight: 700 }}>{slot.start} – {slot.end}</div>
-                          {slot.club && (
-                            <div style={{ fontSize: 12.5, color: MUTED, display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontWeight: 600 }}>
-                              📍 {slot.club}
-                            </div>
-                          )}
-                        </div>
-                        <button onClick={() => deleteSlot(slot.id)} style={{ background: "none", border: "none", padding: 4, color: MUTED, cursor: "pointer" }}>
-                          🗑️
-                        </button>
-                      </div>
-                      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                        {agent && <span style={{ width: 10, height: 10, borderRadius: "50%", background: agent.color, flexShrink: 0 }} />}
-                        <select
-                          value={slot.agent_id || ""}
-                          onChange={(e) => assignAgent(slot.id, e.target.value)}
-                          style={{ flex: 1, fontWeight: 600, padding: 8, borderRadius: 8, border: `2px solid ${BORDER}` }}
-                        >
-                          <option value="">— À pourvoir —</option>
-                          {agents.map((a) => (
-                            <option key={a.id} value={a.id}>{a.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      {!agent && (
-                        <div style={{ marginTop: 8, fontSize: 12, color: CORAL, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                          ⚠️ Remplaçant à trouver
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Formulaire ajout */}
-            {showAddSlot ? (
-              <div style={{ background: CARD, border: `2px solid ${INK}`, borderRadius: 14, padding: 14, marginTop: 12 }}>
-                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>Début</label>
-                    <input type="time" value={newSlot.start} onChange={(e) => setNewSlot({ ...newSlot, start: e.target.value })} style={{ width: "100%", display: "block", marginTop: 4, padding: 8, border: `2px solid ${BORDER}`, borderRadius: 8 }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>Fin</label>
-                    <input type="time" value={newSlot.end} onChange={(e) => setNewSlot({ ...newSlot, end: e.target.value })} style={{ width: "100%", display: "block", marginTop: 4, padding: 8, border: `2px solid ${BORDER}`, borderRadius: 8 }} />
-                  </div>
-                </div>
-                <label style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>Club (ex. Nation, Alexandre...)</label>
-                <input type="text" placeholder="Nom du club" value={newSlot.club} onChange={(e) => setNewSlot({ ...newSlot, club: e.target.value })} style={{ width: "100%", display: "block", marginTop: 4, marginBottom: 10, padding: 8, border: `2px solid ${BORDER}`, borderRadius: 8 }} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={addSlot} style={{ flex: 1, background: INK, color: LIME, border: "none", borderRadius: 10, padding: "10px 0", fontWeight: 700, fontSize: 13.5 }}>Ajouter</button>
-                  <button onClick={() => setShowAddSlot(false)} style={{ background: "none", border: `2px solid ${BORDER}`, borderRadius: 10, padding: "10px 16px", fontWeight: 600, fontSize: 13.5 }}>Annuler</button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowAddSlot(true)}
-                style={{ width: "100%", marginTop: 12, background: INK, color: LIME, border: "none", borderRadius: 12, padding: "13px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontWeight: 700, fontSize: 14 }}
-              >
-                + Ajouter un créneau
-              </button>
-            )}
-          </div>
-
-          {/* Panneau Agents */}
-          {activePanel === "agents" && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(20,21,26,0.5)", zIndex: 50, display: "flex", justifyContent: "flex-end" }} onClick={() => setActivePanel(null)}>
-              <div onClick={(e) => e.stopPropagation()} style={{ width: "min(340px, 88vw)", background: BG, height: "100%", padding: 18, overflowY: "auto" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <h2 style={{ fontFamily: "'Archivo Black', system-ui", fontSize: 17, margin: 0 }}>Agents</h2>
-                  <button onClick={() => setActivePanel(null)} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 8, padding: 6 }}>✕</button>
-                </div>
-
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  <input
-                    type="text"
-                    placeholder="Nom de l'agent"
-                    value={newAgentName}
-                    onChange={(e) => setNewAgentName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addAgent()}
-                    style={{ flex: 1, padding: 8, border: `2px solid ${BORDER}`, borderRadius: 8 }}
-                  />
-                  <button onClick={addAgent} style={{ background: INK, color: LIME, border: "none", borderRadius: 8, padding: "0 14px", fontWeight: 700 }}>+</button>
-                </div>
-
-                {agents.length === 0 ? (
-                  <div style={{ color: MUTED, fontSize: 13.5 }}>Aucun agent pour l'instant.</div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {agents.map((a) => (
-                      <div key={a.id} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ width: 12, height: 12, borderRadius: "50%", background: a.color, flexShrink: 0 }} />
-                        <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{a.name}</span>
-                        <button onClick={() => deleteAgent(a.id)} style={{ background: "none", border: "none", color: MUTED }}>🗑️</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Panneau Totaux */}
-          {activePanel === "totals" && (() => {
-            const dates = totalsScope === "week" ? weekDates : getMonthDates(totalsMonth);
-            const { totals, openCount } = computeTotals(dates);
-            const sortedAgents = [...agents].sort((a, b) => (totals[b.id] || 0) - (totals[a.id] || 0));
-            const grandTotal = Object.values(totals).reduce((a, b) => a + b, 0);
-            return (
-              <div style={{ position: "fixed", inset: 0, background: "rgba(20,21,26,0.5)", zIndex: 50, display: "flex", justifyContent: "flex-end" }} onClick={() => setActivePanel(null)}>
-                <div onClick={(e) => e.stopPropagation()} style={{ width: "min(360px, 88vw)", background: BG, height: "100%", padding: 18, overflowY: "auto" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                    <h2 style={{ fontFamily: "'Archivo Black', system-ui", fontSize: 17, margin: 0 }}>Totaux d'heures</h2>
-                    <button onClick={() => setActivePanel(null)} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 8, padding: 6 }}>✕</button>
-                  </div>
-
-                  <div style={{ display: "flex", background: "#EFEFEA", borderRadius: 10, padding: 3, marginBottom: 12 }}>
-                    {["week", "month"].map((scope) => (
-                      <button
-                        key={scope}
-                        onClick={() => setTotalsScope(scope)}
-                        style={{
-                          flex: 1, padding: "8px 0", borderRadius: 8, border: "none", fontWeight: 700, fontSize: 13,
-                          background: totalsScope === scope ? INK : "transparent",
-                          color: totalsScope === scope ? LIME : MUTED,
-                        }}
-                      >
-                        {scope === "week" ? "Semaine" : "Mois"}
-                      </button>
-                    ))}
-                  </div>
-
-                  {totalsScope === "week" ? (
-                    <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 14, fontWeight: 600 }}>Semaine du {weekLabel}</div>
-                  ) : (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                      <button onClick={() => setTotalsMonth(new Date(totalsMonth.getFullYear(), totalsMonth.getMonth() - 1, 1))} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 8, padding: "6px 12px" }}>‹</button>
-                      <span style={{ fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>
-                        {totalsMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
-                      </span>
-                      <button onClick={() => setTotalsMonth(new Date(totalsMonth.getFullYear(), totalsMonth.getMonth() + 1, 1))} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 8, padding: "6px 12px" }}>›</button>
-                    </div>
-                  )}
-
-                  {totalsLoading ? (
-                    <div style={{ color: MUTED, fontSize: 14 }}>Chargement…</div>
-                  ) : (
-                    <>
-                      <div style={{ background: INK, borderRadius: 14, padding: "16px", marginBottom: 14, textAlign: "center" }}>
-                        <div style={{ fontFamily: "'Archivo Black', system-ui", fontSize: 28, color: LIME }}>{minutesToHM(grandTotal)}</div>
-                        <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>heures couvertes au total</div>
-                      </div>
-
-                      {sortedAgents.length === 0 ? (
-                        <div style={{ color: MUTED, fontSize: 13.5 }}>Aucun agent à afficher.</div>
-                      ) : (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          {sortedAgents.map((a) => {
-                            const mins = totals[a.id] || 0;
-                            return (
-                              <div key={a.id} style={{ background: CARD, border: `2px solid ${BORDER}`, borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10 }}>
-                                <span style={{ width: 12, height: 12, borderRadius: "50%", background: a.color, flexShrink: 0 }} />
-                                <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{a.name}</span>
-                                <span style={{ fontWeight: 700, fontSize: 14.5 }}>{minutesToHM(mins)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {openCount > 0 && (
-                        <div style={{ marginTop: 12, background: "#FFF0F0", border: `1px solid ${CORAL}`, borderRadius: 10, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: INK }}>
-                          ⚠️ {openCount} créneau{openCount > 1 ? "x" : ""} non assigné{openCount > 1 ? "s" : ""}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <div style={{ marginTop: 16, fontSize: 11.5, color: MUTED, lineHeight: 1.5 }}>
-                    Chaque créneau inclut 30 min de pointage effectuées avant le début du service.
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </div>
-      );
+        <select onchange="updateAgent(${s.id}, this.value)">${agentOptions}</select>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function showForm(slot = null) {
+    document.getElementById('slot-form').style.display = 'block';
+    if (slot) {
+      document.getElementById('form-title').innerText = "Modifier le créneau";
+      document.getElementById('edit-id').value = slot.id;
+      document.getElementById('form-start').value = slot.start;
+      document.getElementById('form-end').value = slot.end;
+      document.getElementById('form-club').value = slot.club || '';
+    } else {
+      document.getElementById('form-title').innerText = "Nouveau créneau";
+      document.getElementById('edit-id').value = '';
+    }
+  }
+
+  function hideForm() {
+    document.getElementById('slot-form').style.display = 'none';
+  }
+
+  async function saveSlot() {
+    const id = document.getElementById('edit-id').value;
+    const start = document.getElementById('form-start').value;
+    const end = document.getElementById('form-end').value;
+    const club = document.getElementById('form-club').value;
+
+    if (id) {
+      await db.from('slots').update({ start, end, club }).eq('id', id);
+    } else {
+      await db.from('slots').insert([{ date_str: selectedDateStr, start, end, club }]);
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
+    hideForm();
+    await fetchSlots();
+  }
+
+  function editSlot(id) {
+    const slot = slots.find(s => s.id === id);
+    if (slot) showForm(slot);
+  }
+
+  async function updateAgent(slotId, agentId) {
+    await db.from('slots').update({ agent_id: agentId ? parseInt(agentId) : null }).eq('id', slotId);
+    await fetchSlots();
+  }
+
+  async function deleteSlot(id) {
+    if (confirm('Supprimer ce créneau ?')) {
+      await db.from('slots').delete().eq('id', id);
+      await fetchSlots();
+    }
+  }
+
+  function getMonday(d) {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(date.setDate(diff));
+  }
+
+  function changeWeek(direction) {
+    currentDate.setDate(currentDate.getDate() + (direction * 7));
+    renderWeek();
+  }
+
+  init();
+</script>
 </body>
 </html>
