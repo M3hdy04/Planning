@@ -457,13 +457,15 @@
     let totalMins = 0;
 
     filteredSlots.forEach(s => {
-      if (s.start && s.end && agentHours[s.agent_id]) {
+      if (s.start && s.end) {
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
         const diff = (eh * 60 + em) - (sh * 60 + sm) + 30;
         if (diff > 0) {
-          agentHours[s.agent_id].minutes += diff;
           totalMins += diff;
+          if (agentHours[s.agent_id]) {
+            agentHours[s.agent_id].minutes += diff;
+          }
         }
       }
     });
@@ -505,8 +507,21 @@
 
     const totalHoursEl = document.getElementById('modal-total-hours');
 
-    if (hasAnyRate) {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${totalCalculatedRevenueSum.toFixed(2)} €)`;
+    // MODIFICATION PRINCIPALE : Si un taux est saisi pour un agent, on multiplie directement le TOTAL GLOBAL DES HEURES par ce taux (comme demandé)
+    let globalCalculatedRevenue = null;
+    let activeRateUsed = null;
+
+    for (let id in agentRates) {
+      if (agentRates[id] !== undefined && agentRates[id] >= 0) {
+        activeRateUsed = agentRates[id];
+        break; // On prend le premier taux actif trouvé ou on gère selon le besoin
+      }
+    }
+
+    if (activeRateUsed !== null) {
+      const totalHoursDecimal = totalMins / 60;
+      globalCalculatedRevenue = totalHoursDecimal * activeRateUsed;
+      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${globalCalculatedRevenue.toFixed(2)} €)`;
     } else {
       totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
     }
