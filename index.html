@@ -1,176 +1,673 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestion et Tri des Agents</title>
-  <!-- Inclusion du SDK Supabase (version CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f7f6;
-      margin: 0;
-      padding: 20px;
+isClubSelected ? 'active' : ''
+  `;
+          subItem.innerHTML = `🏢 ${club}`;
+          subItem.onclick = (e) => {
+            e.stopPropagation();
+            selectGlobalFilter('CLUB', club, `🏢 ${club}`);
+          };
+          container.appendChild(subItem);
+        });
+      });
     }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    h1 {
-      color: #333;
-      text-align: center;
-    }
-    .filters-container {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 25px;
-      justify-content: center;
-    }
-    select {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      background-color: #fff;
-    }
-    .agents-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 20px;
-    }
-    .agent-card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      border-top: 4px solid #007bff;
-    }
-    .agent-card h3 {
-      margin-top: 0;
-      color: #007bff;
-    }
-    .badge {
-      background: #e9ecef;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    .no-results {
-      text-align: center;
-      grid-column: 1 / -1;
-      color: #777;
-      font-style: italic;
-    }
-  </style>
-</head>
-<body>
+  }
 
-  <div class="container">
-    <h1>Liste des Agents par Secteur</h1>
+  function selectGlobalFilter(type, value, labelText = null) {
+    currentGlobalFilterType = type;
+    currentGlobalFilterValue = value;
 
-    <!-- Filtres et Tri -->
-    <div class="filters-container">
-      <select id="filterSecteur" onchange="filterAndSortAgents()">
-        <option value="">Tous les secteurs</option>
-        <option value="Nord">Nord</option>
-        <option value="Sud">Sud</option>
-        <option value="Est">Est</option>
-        <option value="Ouest">Ouest</option>
-      </select>
+    if (labelText) {
+      document.getElementById('global-filter-current-label').innerText = labelText;
+    } else {
+      document.getElementById('global-filter-current-label').innerText = '🌐 Tous les secteurs';
+    }
 
-      <select id="sortBy" onchange="filterAndSortAgents()">
-        <option value="name_asc">Nom (A-Z)</option>
-        <option value="name_desc">Nom (Z-A)</option>
-        <option value="secteur">Secteur</option>
-      </select>
-    </div>
+    document.getElementById('custom-dropdown-list').classList.remove('open');
+    renderSlots();
+    renderDays();
+  }
 
-    <!-- Conteneur des profils d'agents -->
-    <div id="agentsList" class="agents-grid">
-      <p class="no-results">Chargement des agents...</p>
-    </div>
-  </div>
+  window.onclick = function(event) {
+    if (!event.target.closest('.custom-dropdown')) {
+      const dropdowns = document.getElementsByClassName('custom-dropdown-content');
+      for (let i = 0; i < dropdowns.length; i++) {
+        dropdowns[i].classList.remove('open');
+      }
+    }
+  };
 
-  <script>
-    // --- CONFIGURATION SUPABASE ---
-    const SUPABASE_URL = 'https://inyonzcwfjhzuzlhumzj.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlueW9uemN3ZmpoenV6bGh1bXpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjU5NzUsImV4cCI6MjEwMjA0MTk3NX0.I3OBttFLZitL8UMmqiP4iylg2au1atGifGjosK5EbXM';
-    
-    // Initialisation du client Supabase
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  function triggerSwitchProfile() {
+    document.getElementById('profile-dropdown').classList.remove('open');
+    document.getElementById('main-app-container').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('close-auth-btn').style.display = 'block';
+    initAuthScreen();
+  }
 
-    let allAgents = [];
+  function cancelSwitchProfile() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('close-auth-btn').style.display = 'none';
+    document.getElementById('main-app-container').style.display = 'block';
+  }
 
-    // 1. Récupérer les agents depuis Supabase
-    async function fetchAgents() {
-      const { data, error } = await supabase
-        .from('agents')
-        .select('*');
+  function triggerLogout() {
+    localStorage.removeItem('basicfit_logged_profile_id');
+    location.reload();
+  }
 
+  function toggleProfileDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('profile-dropdown').classList.toggle('open');
+  }
+
+  window.addEventListener('click', () => {
+    const dropdown = document.getElementById('profile-dropdown');
+    if (dropdown) dropdown.classList.remove('open');
+  });
+
+  function openAccountModal() {
+    document.getElementById('account-modal').style.display = 'flex';
+  }
+  function closeAccountModal() {
+    document.getElementById('account-modal').style.display = 'none';
+  }
+  async function saveAccountSettings() {
+    const newName = document.getElementById('account-name').value.trim();
+    if (!newName) {
+      alert("Le nom ne peut pas être vide.");
+      return;
+    }
+    const { error } = await db.from('profiles').update({ name: newName }).eq('id', loggedInProfile.id);
+    if (error) {
+      alert("Erreur lors de la mise à jour du compte.");
+      return;
+    }
+    loggedInProfile.name = newName;
+    document.getElementById('dropdown-name-text').innerText = newName;
+    closeAccountModal();
+    alert("Compte mis à jour avec succès !");
+  }
+
+  function openProfilesManagerModal() {
+    document.getElementById('profiles-manager-modal').style.display = 'flex';
+    loadProfilesManageList();
+    resetProfileForm();
+  }
+  function closeProfilesManagerModal() {
+    document.getElementById('profiles-manager-modal').style.display = 'none';
+  }
+  function resetProfileForm() {
+    document.getElementById('manage-profile-id').value = '';
+    document.getElementById('manage-username').value = '';
+    document.getElementById('manage-name').value = '';
+    document.getElementById('manage-role').value = '';
+    document.getElementById('manage-password').value = '';
+    document.getElementById('manage-sector').value = '';
+    document.getElementById('profile-form-title').innerText = '➕ Ajouter un nouveau profil';
+    document.getElementById('btn-cancel-profile-edit').style.display = 'none';
+  }
+
+  async function loadProfilesManageList() {
+    const { data } = await db.from('profiles').select('*').order('name');
+    const container = document.getElementById('profiles-manage-list');
+    container.innerHTML = '';
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="color:#666; font-style:italic;">Aucun profil trouvé.</p>';
+      return;
+    }
+    data.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'agent-card-item';
+      item.innerHTML = `
+        <div class="agent-row">
+          <div class="agent-info">
+            <div class="dot" style="background: #22c55e;"></div>
+            <div>
+              <div>${p.name} <span style="font-size:0.75rem; color:#666;">(${p.username})</span></div>
+              <div style="font-size:0.75rem; color:#888; font-weight:normal;">${p.role} • Secteur: ${p.sector || 'Aucun'}</div>
+            </div>
+          </div>
+          <div class="agent-right">
+            <button class="btn-agent-plus" onclick="editProfileAdmin('${p.id}', '${p.username}', '${p.name}', '${p.role}', '${p.password || ''}', '${p.sector || ''}')" title="Modifier">✏️</button>
+            <button class="btn-agent-plus" style="color:#f87171;" onclick="deleteProfileAdmin('${p.id}')" title="Supprimer">✕</button>
+          </div>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  function editProfileAdmin(id, username, name, role, password, sector) {
+    document.getElementById('manage-profile-id').value = id;
+    document.getElementById('manage-username').value = username;
+    document.getElementById('manage-name').value = name;
+    document.getElementById('manage-role').value = role;
+    document.getElementById('manage-password').value = password;
+    document.getElementById('manage-sector').value = sector;
+    document.getElementById('profile-form-title').innerText = '✏️ Modifier le profil : ' + name;
+    document.getElementById('btn-cancel-profile-edit').style.display = 'block';
+  }
+
+  async function saveProfileAdmin() {
+    const id = document.getElementById('manage-profile-id').value;
+    const username = document.getElementById('manage-username').value.trim();
+    const name = document.getElementById('manage-name').value.trim();
+    const role = document.getElementById('manage-role').value;
+    const password = document.getElementById('manage-password').value;
+    const sector = document.getElementById('manage-sector').value.trim();
+
+    if (!username || !name || !role) {
+      alert("Veuillez remplir l'identifiant, le nom et sélectionner un rôle.");
+      return;
+    }
+
+    if (id) {
+      const updateData = { username, name, role, sector };
+      if (password) updateData.password = password;
+      const { error } = await db.from('profiles').update(updateData).eq('id', id);
       if (error) {
-        console.error('Erreur lors du chargement des agents :', error);
-        document.getElementById('agentsList').innerHTML = '<p class="no-results">Erreur de chargement des données.</p>';
+        alert("Erreur lors de la mise à jour du profil.");
         return;
       }
-
-      allAgents = data || [];
-      filterAndSortAgents();
+    } else {
+      const { error } = await db.from('profiles').insert([{ username, name, role, password, sector }]);
+      if (error) {
+        alert("Erreur lors de la création du profil.");
+        return;
+      }
     }
+    resetProfileForm();
+    loadProfilesManageList();
+  }
 
-    // 2. Fonction principale de filtrage et de tri en local
-    function filterAndSortAgents() {
-      const selectedSecteur = document.getElementById('filterSecteur').value;
-      const sortCriteria = document.getElementById('sortBy').value;
+  async function deleteProfileAdmin(id) {
+    if (!confirm("Voulez-vous vraiment supprimer ce profil ?")) return;
+    const { error } = await db.from('profiles').delete().eq('id', id);
+    if (error) {
+      alert("Erreur lors de la suppression.");
+      return;
+    }
+    loadProfilesManageList();
+  }
 
-      // Étape A : Filtrage par secteur
-      let filtered = allAgents.filter(agent => {
-        if (!selectedSecteur) return true;
-        return agent.secteur === selectedSecteur;
-      });
+  async function initApp() {
+    await fetchAgents();
+    await fetchSlots();
+    renderDays();
+    updateWeekLabel();
+  }
 
-      // Étape B : Tri des profils
-      filtered.sort((a, b) => {
-        if (sortCriteria === 'name_asc') {
-          return (a.nom || '').localeCompare(b.nom || '');
-        } else if (sortCriteria === 'name_desc') {
-          return (b.nom || '').localeCompare(a.nom || '');
-        } else if (sortCriteria === 'secteur') {
-          return (a.secteur || '').localeCompare(b.secteur || '');
+  async function fetchAgents() {
+    const { data } = await db.from('agents').select('*').order('name');
+    agents = data || [];
+    document.getElementById('agent-count-badge').innerText = agents.length;
+    renderAgentsManageList();
+  }
+
+  async function fetchSlots() {
+    const { data } = await db.from('slots').select('*');
+    allRawSlots = data || [];
+    filterAndRenderSlots();
+  }
+
+  function filterAndRenderSlots() {
+    slots = allRawSlots.filter(s => {
+      // Filtrage selon le rôle ou le secteur du profil connecté s'il n'est pas global
+      if (loggedInProfile && loggedInProfile.sector && !loggedInProfile.role.toLowerCase().includes('développeur') && !loggedInProfile.role.toLowerCase().includes('responsable global')) {
+        if (!s.club || s.club.toLowerCase() !== loggedInProfile.sector.toLowerCase()) {
+          return false;
         }
-        return 0;
-      });
-
-      // Étape C : Affichage
-      renderAgents(filtered);
-    }
-
-    // 3. Rendu visuel des cartes profils dans le DOM
-    function renderAgents(agents) {
-      const container = document.getElementById('agentsList');
-      container.innerHTML = '';
-
-      if (agents.length === 0) {
-        container.innerHTML = '<p class="no-results">Aucun agent trouvé pour ce critère.</p>';
-        return;
       }
 
-      agents.forEach(agent => {
-        const card = document.createElement('div');
-        card.className = 'agent-card';
-        card.innerHTML = `
-          <h3>${agent.nom || 'Sans nom'}</h3>
-          <p><strong>Secteur :</strong> <span class="badge">${agent.secteur || 'Non défini'}</span></p>
-          <p><strong>Email :</strong> ${agent.email || '-'}</p>
-        `;
-        container.appendChild(card);
-      });
+      // Filtrage par menu déroulant global (pour admin/responsable global)
+      if (currentGlobalFilterType === 'SECTEUR') {
+        // Si le filtre est un secteur, on vérifie si le club appartient à ce secteur
+        let secteurNom = "Secteur Reims";
+        if (s.club && s.club.toLowerCase().includes('dijon')) secteurNom = "Secteur Dijon";
+        if (secteurNom.toLowerCase() !== currentGlobalFilterValue.toLowerCase()) return false;
+      } else if (currentGlobalFilterType === 'CLUB') {
+        if (!s.club || s.club.toLowerCase() !== currentGlobalFilterValue.toLowerCase()) return false;
+      }
+
+      return true;
+    });
+
+    renderSlots();
+    renderDays();
+  }
+
+  function getMonday(d) {
+    d = new Date(d);
+    let day = d.getDay(),
+        diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  }
+
+  function changeWeek(direction) {
+    currentDate.setDate(currentDate.getDate() + direction * 7);
+    renderDays();
+    updateWeekLabel();
+  }
+
+  function updateWeekLabel() {
+    const monday = getMonday(currentDate);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    const options = { day: 'numeric', month: 'short' };
+    document.getElementById('week-label').innerText = `${monday.toLocaleDateString('fr-FR', options)} - ${sunday.toLocaleDateString('fr-FR', options)}`;
+  }
+
+  function renderDays() {
+    const container = document.getElementById('days-container');
+    container.innerHTML = '';
+    const monday = getMonday(currentDate);
+
+    const daysNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+    for (let i = 0; i < 7; i++) {
+      let d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      let dateStr = d.toISOString().split('T')[0];
+
+      let daySlots = slots.filter(s => s.date === dateStr);
+      let covered = daySlots.filter(s => s.agent).length;
+      let total = daySlots.length;
+      let pct = total > 0 ? (covered / total) * 100 : 0;
+
+      const card = document.createElement('div');
+      card.className = `day-card ${dateStr === selectedDateStr ? 'active' : ''}`;
+      card.innerHTML = `
+        <div style="font-size:0.75rem; text-transform:uppercase;">${daysNames[i]}</div>
+        <div style="font-size:1.1rem; font-weight:700; margin-top:2px;">${d.getDate()}</div>
+        <div class="day-progress">
+          <div class="day-progress-bar" style="width: ${pct}%"></div>
+        </div>
+      `;
+      card.onclick = () => {
+        selectedDateStr = dateStr;
+        renderDays();
+        renderSlots();
+      };
+      container.appendChild(card);
+    }
+    updateSelectedDayTitle();
+  }
+
+  function updateSelectedDayTitle() {
+    const [y, m, d] = selectedDateStr.split('-');
+    const dateObj = new Date(y, m - 1, d);
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    document.getElementById('selected-day-title').innerText = dateObj.toLocaleDateString('fr-FR', options);
+
+    const daySlots = slots.filter(s => s.date === selectedDateStr);
+    const covered = daySlots.filter(s => s.agent).length;
+    document.getElementById('day-covered-count').innerText = `${covered}/${daySlots.length} couverts`;
+  }
+
+  function renderSlots() {
+    const container = document.getElementById('slots-list');
+    container.innerHTML = '';
+
+    const daySlots = slots.filter(s => s.date === selectedDateStr);
+    daySlots.sort((a, b) => a.start.localeCompare(b.start));
+
+    if (daySlots.length === 0) {
+      container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#777; font-style:italic;">Aucun créneau pour cette journée.</p>`;
+      updateSelectedDayTitle();
+      return;
     }
 
-    // Lancer la récupération au démarrage
-    fetchAgents();
-  </script>
+    daySlots.forEach(slot => {
+      let assignedAgent = agents.find(ag => ag.name === slot.agent);
+      let dotColor = '#ccc';
+      if (assignedAgent) {
+        let index = agents.indexOf(assignedAgent);
+        dotColor = agentColors[index % agentColors.length];
+      }
+
+      const card = document.createElement('div');
+      card.className = 'slot-card';
+      card.style.setProperty('--dot-color', dotColor);
+
+      let optionsHtml = `<option value="">— Non assigné —</option>`;
+      agents.forEach(ag => {
+        optionsHtml += `<option value="${ag.name}" ${slot.agent === ag.name ? 'selected' : ''}>${ag.name}</option>`;
+      });
+
+      card.innerHTML = `
+        <div class="slot-top">
+          <div>
+            <div class="slot-time">${slot.start} - ${slot.end}</div>
+            <div class="slot-club">🏢 ${slot.club || 'Club non spécifié'}</div>
+          </div>
+          <div class="slot-actions">
+            <button class="btn-action" onclick="editSlot('${slot.id}')" title="Modifier">✏️</button>
+            <button class="btn-action" onclick="deleteSlot('${slot.id}')" title="Supprimer">🗑️</button>
+          </div>
+        </div>
+        <div class="select-wrapper">
+          <select onchange="assignAgent('${slot.id}', this.value)">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    updateSelectedDayTitle();
+  }
+
+  function showForm(slotData = null) {
+    document.getElementById('slot-form').style.display = 'block';
+    if (slotData) {
+      document.getElementById('form-title').innerText = 'Modifier le créneau';
+      document.getElementById('edit-id').value = slotData.id;
+      document.getElementById('form-start').value = slotData.start;
+      document.getElementById('form-end').value = slotData.end;
+      document.getElementById('form-club').value = slotData.club;
+    } else {
+      document.getElementById('form-title').innerText = 'Nouveau créneau';
+      document.getElementById('edit-id').value = '';
+      document.getElementById('form-start').value = '09:00';
+      document.getElementById('form-end').value = '13:00';
+      // Si le profil connecté a un secteur fixe, on pré-remplit le club/secteur
+      if (loggedInProfile && loggedInProfile.sector && !loggedInProfile.role.toLowerCase().includes('développeur') && !loggedInProfile.role.toLowerCase().includes('responsable global')) {
+        document.getElementById('form-club').value = loggedInProfile.sector;
+      } else {
+        document.getElementById('form-club').value = '';
+      }
+    }
+  }
+
+  function hideForm() {
+    document.getElementById('slot-form').style.display = 'none';
+  }
+
+  async function saveSlot() {
+    const id = document.getElementById('edit-id').value;
+    const start = document.getElementById('form-start').value;
+    const end = document.getElementById('form-end').value;
+    const club = document.getElementById('form-club').value.trim();
+
+    if (!start || !end || !club) {
+      alert("Veuillez remplir tous les champs.");
+      return;
+    }
+
+    if (id) {
+      const { error } = await db.from('slots').update({ start, end, club }).eq('id', id);
+      if (error) {
+        alert("Erreur lors de la modification.");
+        return;
+      }
+    } else {
+      const { error } = await db.from('slots').insert([{ date: selectedDateStr, start, end, club, agent: null }]);
+      if (error) {
+        alert("Erreur lors de la création.");
+        return;
+      }
+    }
+
+    hideForm();
+    await fetchSlots();
+  }
+
+  async function editSlot(id) {
+    const slot = allRawSlots.find(s => String(s.id) === String(id));
+    if (slot) showForm(slot);
+  }
+
+  async function deleteSlot(id) {
+    if (!confirm("Voulez-vous supprimer ce créneau ?")) return;
+    const { error } = await db.from('slots').delete().eq('id', id);
+    if (error) {
+      alert("Erreur lors de la suppression.");
+      return;
+    }
+    await fetchSlots();
+  }
+
+  async function assignAgent(id, agentName) {
+    const val = agentName === "" ? null : agentName;
+    const { error } = await db.from('slots').update({ agent: val }).eq('id', id);
+    if (error) {
+      alert("Erreur lors de l'assignation.");
+      return;
+    }
+    await fetchSlots();
+  }
+
+  function openAgentsModal() {
+    document.getElementById('agents-modal').style.display = 'flex';
+    renderAgentsManageList();
+  }
+  function closeAgentsModal() {
+    document.getElementById('agents-modal').style.display = 'none';
+  }
+
+  async function addAgent() {
+    const name = document.getElementById('new-agent-name').value.trim();
+    const phone = document.getElementById('new-agent-phone').value.trim();
+    const email = document.getElementById('new-agent-email').value.trim();
+    const rib = document.getElementById('new-agent-rib').value.trim();
+
+    if (!name) {
+      alert("Le nom de l'agent est obligatoire.");
+      return;
+    }
+
+    const { error } = await db.from('agents').insert([{ name, phone, email, rib }]);
+    if (error) {
+      alert("Erreur lors de l'ajout de l'agent.");
+      return;
+    }
+
+    document.getElementById('new-agent-name').value = '';
+    document.getElementById('new-agent-phone').value = '';
+    document.getElementById('new-agent-email').value = '';
+    document.getElementById('new-agent-rib').value = '';
+
+    await fetchAgents();
+    await fetchSlots();
+  }
+
+  function renderAgentsManageList() {
+    const container = document.getElementById('agents-manage-list');
+    container.innerHTML = '';
+
+    if (agents.length === 0) {
+      container.innerHTML = `<p style="color:#666; font-style:italic;">Aucun agent enregistré.</p>`;
+      return;
+    }
+
+    agents.forEach((ag, idx) => {
+      let dotColor = agentColors[idx % agentColors.length];
+      let isOpenRate = openRateAgents[ag.id] || false;
+      let isOpenDetails = openAgentDetails[ag.id] || false;
+      let currentRate = agentRates[ag.name] || 15;
+
+      const item = document.createElement('div');
+      item.className = 'agent-card-item';
+      item.innerHTML = `
+        <div class="agent-row">
+          <div class="agent-info">
+            <div class="dot" style="background: ${dotColor};"></div>
+            <div>${ag.name}</div>
+          </div>
+          <div class="agent-right">
+            <button class="btn-agent-plus" onclick="toggleAgentDetails('${ag.id}')" title="Informations">📋</button>
+            <button class="btn-agent-plus" onclick="toggleRatePanel('${ag.id}')" title="Taux horaire">💶</button>
+            <button class="btn-agent-plus" style="color: #f87171;" onclick="deleteAgent('${ag.id}')" title="Supprimer">✕</button>
+          </div>
+        </div>
+        <div class="agent-details-panel ${isOpenDetails ? 'open' : ''}" id="details-panel-${ag.id}">
+          <div>
+            <label>Téléphone</label>
+            <input type="text" id="detail-phone-${ag.id}" value="${ag.phone || ''}" placeholder="Non renseigné">
+          </div>
+          <div>
+            <label>Adresse mail</label>
+            <input type="email" id="detail-email-${ag.id}" value="${ag.email || ''}" placeholder="Non renseigné">
+          </div>
+          <div>
+            <label>RIB (IBAN)</label>
+            <input type="text" id="detail-rib-${ag.id}" value="${ag.rib || ''}" placeholder="Non renseigné">
+          </div>
+          <button class="btn-save-details" onclick="saveAgentDetails('${ag.id}')">Enregistrer les modifications</button>
+        </div>
+        <div class="agent-rate-panel ${isOpenRate ? 'open' : ''}">
+          <span>Taux horaire (€/h) :</span>
+          <input type="number" step="0.5" value="${currentRate}" onchange="updateAgentRate('${ag.name}', this.value)">
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  function toggleRatePanel(id) {
+    openRateAgents[id] = !openRateAgents[id];
+    renderAgentsManageList();
+  }
+
+  function toggleAgentDetails(id) {
+    openAgentDetails[id] = !openAgentDetails[id];
+    renderAgentsManageList();
+  }
+
+  async function saveAgentDetails(id) {
+    const phone = document.getElementById(`detail-phone-${id}`).value.trim();
+    const email = document.getElementById(`detail-email-${id}`).value.trim();
+    const rib = document.getElementById(`detail-rib-${id}`).value.trim();
+
+    const { error } = await db.from('agents').update({ phone, email, rib }).eq('id', id);
+    if (error) {
+      alert("Erreur lors de la mise à jour des informations.");
+      return;
+    }
+    alert("Informations mises à jour avec succès !");
+    await fetchAgents();
+  }
+
+  function updateAgentRate(name, val) {
+    agentRates[name] = parseFloat(val) || 0;
+  }
+
+  async function deleteAgent(id) {
+    if (!confirm("Voulez-vous supprimer cet agent ?")) return;
+    const { error } = await db.from('agents').delete().eq('id', id);
+    if (error) {
+      alert("Erreur lors de la suppression.");
+      return;
+    }
+    await fetchAgents();
+    await fetchSlots();
+  }
+
+  function openTotalModal() {
+    document.getElementById('total-modal').style.display = 'flex';
+    modalDate = new Date();
+    renderTotalModal();
+  }
+  function closeTotalModal() {
+    document.getElementById('total-modal').style.display = 'none';
+  }
+
+  function switchTotalTab(tab) {
+    modalTab = tab;
+    document.getElementById('btn-semaine').classList.toggle('active', tab === 'semaine');
+    document.getElementById('btn-mois').classList.toggle('active', tab === 'mois');
+    renderTotalModal();
+  }
+
+  function changeModalDate(direction) {
+    if (modalTab === 'semaine') {
+      modalDate.setDate(modalDate.getDate() + direction * 7);
+    } else {
+      modalDate.setMonth(modalDate.getMonth() + direction);
+    }
+    renderTotalModal();
+  }
+
+  function renderTotalModal() {
+    const periodLabel = document.getElementById('modal-period-label');
+    const totalHoursEl = document.getElementById('modal-total-hours');
+    const agentsListContainer = document.getElementById('modal-agents-list');
+
+    let startDate, endDate;
+
+    if (modalTab === 'semaine') {
+      startDate = getMonday(modalDate);
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 6);
+      periodLabel.innerText = `${startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} - ${endDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    } else {
+      startDate = new Date(modalDate.getFullYear(), modalDate.getMonth(), 1);
+      endDate = new Date(modalDate.getFullYear(), modalDate.getMonth() + 1, 0);
+      periodLabel.innerText = modalDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    }
+
+    let startIso = startDate.toISOString().split('T')[0];
+    let endIso = endDate.toISOString().split('T')[0];
+
+    let periodSlots = slots.filter(s => s.date >= startIso && s.date <= endIso && s.agent);
+
+    let totalMinutesAll = 0;
+    let agentStats = {};
+
+    agents.forEach(ag => {
+      agentStats[ag.name] = { minutes: 0, count: 0 };
+    });
+
+    periodSlots.forEach(s => {
+      let [h1, m1] = s.start.split(':').map(Number);
+      let [h2, m2] = s.end.split(':').map(Number);
+      let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+      if (mins < 0) mins += 24 * 60;
+
+      // Ajout de 30 minutes de pointage par créneau couvert
+      mins += 30;
+
+      if (agentStats[s.agent]) {
+        agentStats[s.agent].minutes += mins;
+        agentStats[s.agent].count += 1;
+      }
+      totalMinutesAll += mins;
+    });
+
+    let totalHoursFormatted = `${Math.floor(totalMinutesAll / 60)}h${String(totalMinutesAll % 60).padStart(2, '0')}`;
+    let totalCostAll = 0;
+
+    let agentsHtml = '';
+    agents.forEach((ag, idx) => {
+      let stats = agentStats[ag.name] || { minutes: 0, count: 0 };
+      if (stats.minutes === 0) return; // Masquer les agents sans heures sur la période
+
+      let hoursFormatted = `${Math.floor(stats.minutes / 60)}h${String(stats.minutes % 60).padStart(2, '0')}`;
+      let rate = agentRates[ag.name] || 15;
+      let cost = (stats.minutes / 60) * rate;
+      totalCostAll += cost;
+      let dotColor = agentColors[idx % agentColors.length];
+
+      agentsHtml += `
+        <div class="agent-card-item">
+          <div class="agent-row">
+            <div class="agent-info">
+              <div class="dot" style="background: ${dotColor};"></div>
+              <div>${ag.name} <span style="font-size:0.75rem; color:#666; font-weight:normal;">(${stats.count} créneaux)</span></div>
+            </div>
+            <div class="agent-right" style="font-weight:700;">
+              ${hoursFormatted} <span style="font-size:0.8rem; color:#666; font-weight:normal;">(${cost.toFixed(2)} €)</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    totalHoursEl.innerText = `${totalHoursFormatted} / ${totalCostAll.toFixed(2)} €`;
+    agentsListContainer.innerHTML = agentsHtml || `<p style="text-align:center; color:#666; font-style:italic;">Aucune heure effectuée sur cette période.</p>`;
+  }
+
+  window.onload = checkInitialAuth;
+</script>
 
 </body>
 </html>
