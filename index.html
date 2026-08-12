@@ -341,7 +341,6 @@
   let selectedProfileContext = null;
   let loggedInProfile = null;
   
-  // Type de filtre actif : 'ALL', 'SECTEUR' ou 'CLUB'
   let currentGlobalFilterType = 'ALL';
   let currentGlobalFilterValue = 'ALL';
 
@@ -565,6 +564,58 @@
       dropdown.classList.remove('open');
     }
   });
+
+  // --- Gestion des Agents liée au profil connecté ---
+  async function loadAgents() {
+    let query = db.from('agents').select('*');
+
+    const isDeveloper = loggedInProfile && loggedInProfile.role && loggedInProfile.role.toLowerCase().includes('développeur');
+    
+    // Si l'utilisateur n'est pas développeur, on filtre uniquement par les agents créés par son propre profil
+    if (loggedInProfile && !isDeveloper) {
+      query = query.eq('created_by', loggedInProfile.id);
+    }
+
+    const { data, error } = await query;
+    if (!error && data) {
+      agents = data;
+      if (typeof renderAgentsList === 'function') {
+        renderAgentsList();
+      }
+      document.getElementById('agent-count-badge').innerText = agents.length;
+    }
+  }
+
+  async function addAgent() {
+    const name = document.getElementById('new-agent-name').value.trim();
+    const phone = document.getElementById('new-agent-phone').value.trim();
+    const email = document.getElementById('new-agent-email').value.trim();
+    const rib = document.getElementById('new-agent-rib').value.trim();
+
+    if (!name) {
+      alert("Veuillez entrer un nom d'agent.");
+      return;
+    }
+
+    const { error } = await db.from('agents').insert([{
+      name: name,
+      phone: phone,
+      email: email,
+      rib: rib,
+      created_by: loggedInProfile ? loggedInProfile.id : null
+    }]);
+
+    if (error) {
+      alert("Erreur lors de l'ajout de l'agent.");
+      console.log(error);
+    } else {
+      document.getElementById('new-agent-name').value = '';
+      document.getElementById('new-agent-phone').value = '';
+      document.getElementById('new-agent-email').value = '';
+      document.getElementById('new-agent-rib').value = '';
+      loadAgents();
+    }
+  }
 
   // checkInitialAuth();
 </script>
