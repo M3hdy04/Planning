@@ -1306,32 +1306,3 @@
 </script>
 </body>
 </html>
-// Sous-éléments : liste des clubs de ce secteur spécifique
-        secteursMap[secteur].forEach(club => {
-          const isClubSelected = currentGlobalFilterType === 'CLUB' && currentGlobalFilterValue.toLowerCase() === club.toLowerCase();
-          const subItem = document.createElement('div');
-          subItem.className = `custom-dropdown-subitem ${isClubSelected ? 'active' : ''}`;
-          subItem.innerHTML = `🏢 ${club}`;
-          subItem.onclick = (e) => {
-            e.stopPropagation();
-            selectGlobalFilter('CLUB', club, `🏢 ${club}`);
-            document.getElementById('custom-dropdown-list').classList.remove('open');
-          };
-          container.appendChild(subItem);
-        });
-      });
-    }
-  }
-
-  // Fermer le menu déroulant si on clique ailleurs
-  document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('custom-dropdown-list');
-    const button = document.querySelector('.custom-dropdown-btn');
-    if (dropdown && dropdown.classList.contains('open') && !dropdown.contains(event.target) && !button.contains(event.target)) {
-      dropdown.classList.remove('open');
-    }
-  });
-
-</script>
-</body>
-</html>
