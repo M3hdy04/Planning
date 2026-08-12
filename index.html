@@ -66,10 +66,16 @@
     .btn-agent-plus { background: #f3f4f6; border: 1px solid var(--border); border-radius: 6px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: #333; }
     .btn-agent-plus:hover { background: #e5e7eb; }
 
-    /* Panneau de configuration du taux horaire individuel (caché par défaut) */
+    /* Panneau de configuration du taux horaire individuel */
     .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 10px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
     .agent-rate-panel.open { display: flex; }
     .agent-rate-panel input { width: 80px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.9rem; background: white; }
+    
+    /* Correction du style number input */
+    .agent-rate-panel input[type=number]::-webkit-inner-spin-button, 
+    .agent-rate-panel input[type=number]::-webkit-outer-spin-button { 
+      opacity: 1; 
+    }
   </style>
 </head>
 <body>
@@ -174,8 +180,8 @@
   
   let modalTab = 'mois';
   let modalDate = new Date();
-  let agentRates = {}; // { agentId: rate }
-  let openRateAgents = {}; // { agentId: true/false } pour savoir quel champ "+" est ouvert
+  let agentRates = {}; 
+  let openRateAgents = {}; 
 
   const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
