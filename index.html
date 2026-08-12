@@ -62,16 +62,16 @@
     .dot { width: 10px; height: 10px; border-radius: 50%; }
     .agent-right { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
     
-    /* Bouton + individuel sur chaque ligne d'agent */
+    /* Bouton + / - individuel sur chaque ligne d'agent */
     .btn-agent-plus { background: #f3f4f6; border: 1px solid var(--border); border-radius: 6px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: #333; }
     .btn-agent-plus:hover { background: #e5e7eb; }
 
     /* Panneau de configuration du taux horaire individuel */
     .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 10px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
     .agent-rate-panel.open { display: flex; }
-    .agent-rate-panel input { width: 80px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.9rem; background: white; }
+    .agent-rate-panel input { width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; outline: none; }
     
-    /* Correction du style number input */
+    /* Style champ number */
     .agent-rate-panel input[type=number]::-webkit-inner-spin-button, 
     .agent-rate-panel input[type=number]::-webkit-outer-spin-button { 
       opacity: 1; 
@@ -429,7 +429,7 @@
 
   function updateAgentRate(agentId, val) {
     const rate = parseFloat(val);
-    if (!isNaN(rate) && rate > 0) {
+    if (!isNaN(rate) && rate >= 0) {
       agentRates[agentId] = rate;
     } else {
       delete agentRates[agentId];
@@ -469,7 +469,6 @@
     agents.forEach(a => agentHours[a.id] = { id: a.id, name: a.name, minutes: 0 });
 
     let totalMins = 0;
-    let totalCalculatedRevenue = 0;
 
     filteredSlots.forEach(s => {
       if (s.start && s.end && s.agent_id && agentHours[s.agent_id]) {
@@ -488,14 +487,20 @@
     const totalH = Math.floor(totalMins / 60);
     const totalM = totalMins % 60;
 
+    // Calcul du total cumulé de tous les agents pour lesquels un taux horaire est défini
+    let totalCalculatedRevenue = 0;
+    let hasAnyRate = false;
+
     agents.forEach(a => {
       const ag = agentHours[a.id];
-      if (ag && ag.minutes > 0 && agentRates[a.id] > 0) {
-        totalCalculatedRevenue += (ag.minutes / 60) * agentRates[a.id];
+      if (ag && agentRates[a.id] !== undefined) {
+        hasAnyRate = true;
+        const hoursDecimal = ag.minutes / 60;
+        totalCalculatedRevenue += hoursDecimal * agentRates[a.id];
       }
     });
-    
-    if (Object.keys(agentRates).length > 0) {
+
+    if (hasAnyRate) {
       totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${totalCalculatedRevenue.toFixed(2)} €)`;
     } else {
       totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
@@ -510,8 +515,8 @@
       const color = agentColors[index % agentColors.length];
 
       let revenueText = '';
-      const activeRate = agentRates[ag.id] || 0;
-      if (activeRate > 0 && ag.minutes > 0) {
+      const activeRate = agentRates[ag.id];
+      if (activeRate !== undefined && activeRate >= 0) {
         const agentRevenue = ((ag.minutes / 60) * activeRate).toFixed(2);
         revenueText = ` <span style="color: #22c55e; font-size: 0.85rem;">(${agentRevenue} €)</span>`;
       }
