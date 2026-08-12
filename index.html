@@ -3,314 +3,533 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connexion — Gestion des plannings</title>
+  <title>Planning Remplacements</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
-      --bg-color: #0f172a;
-      --card-bg: #1e293b;
-      --border-color: #334155;
-      --text-color: #f8fafc;
-      --text-muted: #94a3b8;
+      --bg-color: #2b4c7e;
+      --card-bg: rgba(255, 255, 255, 0.12);
+      --border-color: rgba(255, 255, 255, 0.2);
+      --text-color: #ffffff;
+      --text-muted: #cbd5e1;
       --accent-color: #84cc16;
       --accent-hover: #65a30d;
-      --danger-color: #ef4444;
+      --border: #e5e7eb;
     }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh; align-items: center; }
+    
+    .container { width: 100%; max-width: 1400px; margin: 0 auto; }
+    .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; position: relative; flex-wrap: wrap; gap: 12px; }
+    .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-left { display: flex; flex-direction: column; gap: 4px; }
+    
+    .custom-dropdown { position: relative; display: inline-block; }
+    .custom-dropdown-btn { background: #222; color: #a3e635; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none; display: flex; align-items: center; gap: 6px; }
+    .custom-dropdown-content { display: none; position: absolute; top: 110%; left: 0; background: #222; border: 1px solid #333; border-radius: 12px; width: 280px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 1000; overflow: hidden; color: white; text-align: left; max-height: 320px; overflow-y: auto; }
+    .custom-dropdown-content.open { display: block; }
+    .custom-dropdown-item { padding: 10px 14px; font-size: 0.85rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    .custom-dropdown-item:hover { background: #333; }
+    .custom-dropdown-item.active { color: #a3e635; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    }
+    .badges-group { display: flex; gap: 6px; align-items: center; }
+    .badge { background: #222; border: 1px solid #333; padding: 6px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: white; }
+    
+    .profile-btn { background: #222; border: 1px solid #333; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; }
+    .profile-dropdown { display: none; position: absolute; top: 75px; right: 20px; background: #222; border: 1px solid #333; border-radius: 16px; width: 260px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; overflow: hidden; color: white; text-align: left; }
+    .profile-dropdown.open { display: block; }
+    .profile-dropdown-header { padding: 14px 16px; border-bottom: 1px solid #333; }
+    .profile-dropdown-header .role { font-size: 0.75rem; color: #a3e635; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+    .profile-dropdown-header .name { font-size: 0.95rem; font-weight: 600; }
+    .profile-dropdown-item { padding: 12px 16px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .profile-dropdown-item:hover { background: #333; }
 
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-    }
+    .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .btn-icon { background: white; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #1a1a1a; font-size: 1.2rem; }
+    .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
+    .day-card { flex: 1; min-width: 65px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 4px; text-align: center; cursor: pointer; position: relative; color: #1a1a1a; }
+    .day-card.active { background: #111; color: white; border-color: #111; }
+    
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 700; font-size: 1.1rem; }
+    #slots-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+    
+    .slot-card { background: white; border-radius: 12px; padding: 14px; color: #1a1a1a; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--accent-color); }
+    .slot-card.unassigned { border-left-color: #f59e0b; }
 
-    .login-container {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 32px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-    }
+    .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; margin-bottom: 16px; max-width: 500px; color: #1a1a1a; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
+    .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: rgba(255, 255, 255, 0.9); outline: none; color: #1a1a1a; }
+    
+    .btn-submit { width: 100%; background: var(--accent-color); color: #111; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 8px; font-size: 0.95rem; }
+    .btn-submit:hover { background: var(--accent-hover); }
+    .btn-cancel { width: 100%; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .btn-cancel:hover { background: rgba(255, 255, 255, 0.05); color: white; }
 
-    .login-header {
-      text-align: center;
-      margin-bottom: 28px;
-    }
-
-    .login-header h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .login-header p {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-    }
-
-    /* Vues du système d'authentification */
-    .auth-view {
-      display: none;
-    }
-
-    .auth-view.active {
-      display: block;
-    }
-
-    /* Grille des profils */
-    .profiles-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-height: 300px;
-      overflow-y: auto;
-      margin-bottom: 20px;
-      padding-right: 4px;
-    }
-
-    .profile-card {
-      background-color: var(--bg-color);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .profile-card:hover {
-      border-color: var(--accent-color);
-      transform: translateY(-1px);
-    }
-
-    .profile-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .profile-name {
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-
-    .profile-role {
-      font-size: 0.75rem;
-      color: var(--accent-color);
-      font-weight: 500;
-      margin-top: 2px;
-    }
-
-    .profile-arrow {
-      color: var(--text-muted);
-      font-size: 1.1rem;
-    }
-
-    /* Formulaire de mot de passe */
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    .form-control {
-      width: 100%;
-      background-color: var(--bg-color);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px;
-      color: var(--text-color);
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .form-control:focus {
-      border-color: var(--accent-color);
-    }
-
-    .btn {
-      width: 100%;
-      background-color: var(--accent-color);
-      color: #000;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      padding: 12px;
-      cursor: pointer;
-      font-size: 0.95rem;
-      transition: background-color 0.2s;
-    }
-
-    .btn:hover {
-      background-color: var(--accent-hover);
-    }
-
-    .btn-secondary {
-      background-color: transparent;
-      color: var(--text-muted);
-      border: 1px solid var(--border-color);
-      margin-top: 10px;
-    }
-
-    .btn-secondary:hover {
-      background-color: var(--border-color);
-      color: var(--text-color);
-    }
-
-    .selected-user-badge {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background-color: var(--bg-color);
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      margin-bottom: 20px;
-    }
-
-    .selected-user-name {
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-
-    .error-msg {
-      color: var(--danger-color);
-      font-size: 0.8rem;
-      margin-top: 8px;
-      text-align: center;
-      display: none;
-    }
+    #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 16px; }
+    .auth-card { background-color: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border-color); width: 100%; max-width: 400px; border-radius: 20px; padding: 28px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center; color: white; }
+    .auth-card h2 { margin-top: 0; margin-bottom: 6px; font-size: 1.3rem; color: white; }
+    .auth-card p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; }
+    
+    .profile-list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; margin-bottom: 8px; cursor: pointer; text-align: left; font-weight: 600; transition: background 0.2s; color: white; }
+    .profile-list-item:hover { background: rgba(255, 255, 255, 0.15); }
+    
+    .password-wrapper { position: relative; width: 100%; margin-top: 4px; }
+    .password-wrapper input { width: 100%; padding-right: 40px; color: #1a1a1a; }
+    .toggle-password-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; color: #666; }
+    .modal-close { position: absolute; top: 16px; right: 16px; background: #f3f4f6; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; color: #111; }
   </style>
 </head>
 <body>
 
-  <div class="login-container">
-    <div class="login-header">
-      <h1>Espace Connexion</h1>
-      <p>Sélectionnez votre profil pour continuer</p>
-    </div>
+<div id="auth-screen">
+  <div class="auth-card" id="auth-view-profiles" style="position: relative;">
+    <button id="close-auth-btn" class="modal-close" style="display: none; background: rgba(255,255,255,0.2); color:white;" onclick="cancelSwitchProfile()">✕</button>
+    <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; margin-bottom: 6px;">BASIC FIT • PLANNING</div>
+    <h2>Sélectionnez un profil</h2>
+    <p>Choisissez votre profil pour accéder au planning</p>
+    <div id="profiles-selection-list" style="max-height: 260px; overflow-y: auto;"></div>
+    <button class="btn-cancel" style="margin-top: 16px;" onclick="showLoginPasswordForm('Administrateur')">🔑 Connexion par Identifiant / Mot de passe</button>
+  </div>
 
-    <!-- VUE 1 : Liste des profils -->
-    <div id="auth-view-profiles" class="auth-view active">
-      <div id="profiles-list" class="profiles-grid">
-        <!-- Rempli dynamiquement -->
-        <div style="text-align: center; color: var(--text-muted); padding: 20px;">Chargement des profils...</div>
-      </div>
-    </div>
-
-    <!-- VUE 2 : Saisie du mot de passe -->
-    <div id="auth-view-password" class="auth-view">
-      <div class="selected-user-badge">
-        <div>👤</div>
-        <div class="selected-user-name" id="selected-profile-name">Nom du profil</div>
-      </div>
+  <div class="auth-card" id="auth-view-password" style="display: none; position: relative;">
+    <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; margin-bottom: 6px;">Sécurité</div>
+    <h2 id="auth-target-profile-title">Mot de passe requis</h2>
+    <p id="auth-target-profile-sub">Entrez le mot de passe pour accéder à ce profil</p>
+    
+    <div class="form-group" style="text-align: left;">
+      <label id="auth-user-label" style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 4px;">Nom d'utilisateur</label>
+      <input type="text" id="auth-username" class="form-control" placeholder="Nom d'utilisateur" style="display:none; margin-bottom: 8px;">
       
-      <div class="form-group">
-        <label for="password-input">Mot de passe</label>
-        <input type="password" id="password-input" class="form-control" placeholder="Entrez votre mot de passe">
-        <div id="login-error" class="error-msg">Mot de passe incorrect</div>
+      <label style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 4px; display:block;">Mot de passe</label>
+      <div class="password-wrapper">
+        <input type="password" id="auth-password" class="form-control" placeholder="••••••••">
+        <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('auth-password', this)">👁️</button>
       </div>
+    </div>
+    
+    <button class="btn-submit" onclick="submitLogin()">Se connecter</button>
+    <button class="btn-cancel" onclick="backToProfilesList()">← Retour aux profils</button>
+  </div>
+</div>
 
-      <button class="btn" onclick="handleLogin()">Se connecter</button>
-      <button class="btn btn-secondary" onclick="backToProfiles()">← Changer de profil</button>
+<div class="container" id="main-app-container" style="display: none;">
+  <div class="header">
+    <div class="header-left">
+      <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;" id="header-secteur-label">BASIC FIT • ACCUEIL</div>
+      <h1>Planning remplacements</h1>
+    </div>
+    
+    <div id="global-filter-wrapper" style="display: none;" class="custom-dropdown">
+      <div class="custom-dropdown-btn" onclick="toggleCustomDropdown(event)">
+        <span id="global-filter-current-label">🌐 Tous les secteurs</span> ▾
+      </div>
+      <div class="custom-dropdown-content" id="custom-dropdown-list">
+        <div class="custom-dropdown-item active" onclick="selectGlobalFilter('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>
+      </div>
+    </div>
+
+    <div class="badges-group">
+      <div class="badge" onclick="alertModalTotaux()">⏱️ Totaux</div>
+      <div class="badge" onclick="alertModalAgents()">👥 <span id="agent-count-badge">0</span></div>
+      <div class="profile-btn" onclick="toggleProfileDropdown(event)" title="Profil">👤</div>
+    </div>
+
+    <div class="profile-dropdown" id="profile-dropdown">
+      <div class="profile-dropdown-header">
+        <div class="role" id="dropdown-role-text">Profil</div>
+        <div class="name" id="dropdown-name-text">Nom</div>
+      </div>
+      <div class="profile-dropdown-item" onclick="triggerSwitchProfile()">🔄 Changer de profil</div>
+      <div class="profile-dropdown-item" style="color: #f87171;" onclick="triggerLogout()">🚪 Déconnexion</div>
     </div>
   </div>
 
-<script>
-  // Configuration Supabase (à adapter selon vos clés)
-  const SUPABASE_URL = 'VOTRE_SUPABASE_URL';
-  const SUPABASE_ANON_KEY = 'VOTRE_SUPABASE_ANON_KEY';
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <div class="nav">
+    <button class="btn-icon" onclick="changeWeek(-1)">‹</button>
+    <strong id="week-label"></strong>
+    <button class="btn-icon" onclick="changeWeek(1)">›</button>
+  </div>
 
-  let selectedProfile = null;
+  <div class="days" id="days-container"></div>
+
+  <div class="section-header">
+    <span id="selected-day-title"></span>
+    <span id="day-covered-count" style="font-size: 0.9rem; color: #22c55e;">0/0 couverts</span>
+  </div>
+
+  <div id="slots-list"></div>
+
+  <button class="btn-submit" style="max-width:300px; margin-top:16px;" onclick="showForm()">+ Ajouter un créneau</button>
+
+  <div class="form-card" id="slot-form" style="display: none;">
+    <h3 id="form-title" style="margin-top:0;">Nouveau créneau</h3>
+    <input type="hidden" id="edit-id">
+    <div class="form-group">
+      <label>Début / Fin</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="time" id="form-start" class="form-control" value="09:00">
+        <input type="time" id="form-end" class="form-control" value="13:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Club / Secteur</label>
+      <input type="text" id="form-club" class="form-control" placeholder="ex. Cernay, Croix rouge...">
+    </div>
+    <button class="btn-submit" onclick="saveSlot()" style="max-width: none;">Enregistrer</button>
+    <button class="btn-cancel" onclick="hideForm()">Annuler</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://inyonzcwfjhzuzlhumzj.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_s_-vJjAZgAbMy27Oh0RDpg_hxcJV1KX";
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let availableProfiles = [];
+  let selectedProfileContext = null;
+  let loggedInProfile = null;
+  let currentWeekStart = getMonday(new Date());
+  let selectedDayIndex = (new Date().getDay() + 6) % 7; 
+  let slotsData = [];
+  let agentsData = [];
+  let currentGlobalSectorFilter = 'ALL';
+
+  function getMonday(d) {
+    d = new Date(d);
+    let day = d.getDay(),
+        diff = d.getDate() - day + (day == 0 ? -6:1);
+    return new Date(d.setDate(diff));
+  }
+
+  function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.innerText = '🙈';
+    } else {
+      input.type = 'password';
+      btn.innerText = '👁️';
+    }
+  }
+
+  async function checkInitialAuth() {
+    const { data } = await db.from('profiles').select('*').order('name');
+    if (data) availableProfiles = data;
+
+    const savedProfileId = localStorage.getItem('basicfit_logged_profile_id');
+    if (savedProfileId && availableProfiles.length > 0) {
+      const found = availableProfiles.find(p => String(p.id) === String(savedProfileId));
+      if (found) {
+        setLoggedInUser(found);
+        return;
+      }
+    }
+    initAuthScreen();
+  }
 
   async function initAuthScreen() {
-    const listContainer = document.getElementById('profiles-list');
     const { data, error } = await db.from('profiles').select('*').order('name');
+    if (!error && data) availableProfiles = data;
 
-    if (error || !data || data.length === 0) {
-      listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">Aucun profil trouvé.</div>`;
-      return;
-    }
-
+    const listContainer = document.getElementById('profiles-selection-list');
     listContainer.innerHTML = '';
-    data.forEach(profile => {
-      const card = document.createElement('div');
-      card.className = 'profile-card';
-      card.innerHTML = `
-        <div class="profile-info">
-          <span class="profile-name">${profile.name}</span>
-          <span class="profile-role">${profile.role || 'Utilisateur'}</span>
+
+    availableProfiles.forEach(p => {
+      let secteurText = p.sector ? p.sector : 'Tous secteurs';
+      const item = document.createElement('div');
+      item.className = 'profile-list-item';
+      item.innerHTML = `
+        <div>
+          <div style="font-size: 0.95rem;">${p.name}</div>
+          <div style="font-size: 0.75rem; color: #cbd5e1; font-weight: normal;">${p.role || ''} • ${secteurText}</div>
         </div>
-        <div class="profile-arrow">›</div>
+        <span style="color: #a3e635; font-size: 0.9rem;">Sélectionner →</span>
       `;
-      card.onclick = () => selectProfile(profile);
-      listContainer.appendChild(card);
+      item.onclick = () => selectProfile(p);
+      listContainer.appendChild(item);
     });
   }
 
   function selectProfile(profile) {
-    selectedProfile = profile;
-    document.getElementById('selected-profile-name').innerText = profile.name;
-    document.getElementById('password-input').value = '';
-    document.getElementById('login-error').style.display = 'none';
-
-    document.getElementById('auth-view-profiles').classList.remove('active');
-    document.getElementById('auth-view-password').classList.add('active');
-    document.getElementById('password-input').focus();
+    selectedProfileContext = profile;
+    document.getElementById('auth-view-profiles').style.display = 'none';
+    document.getElementById('auth-view-password').style.display = 'block';
+    document.getElementById('auth-target-profile-title').innerText = profile.name;
+    document.getElementById('auth-target-profile-sub').innerText = `Entrez le mot de passe pour ${profile.role || 'ce profil'}`;
+    document.getElementById('auth-username').style.display = 'none';
+    document.getElementById('auth-user-label').style.display = 'none';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-password').focus();
   }
 
-  function backToProfiles() {
-    selectedProfile = null;
-    document.getElementById('auth-view-password').classList.remove('active');
-    document.getElementById('auth-view-profiles').classList.add('active');
+  function showLoginPasswordForm(mode) {
+    selectedProfileContext = { name: "Administrateur", role: mode, username: "admin" };
+    document.getElementById('auth-view-profiles').style.display = 'none';
+    document.getElementById('auth-view-password').style.display = 'block';
+    document.getElementById('auth-target-profile-title').innerText = "Connexion Administrateur";
+    document.getElementById('auth-target-profile-sub').innerText = "Entrez vos identifiants";
+    document.getElementById('auth-username').style.display = 'block';
+    document.getElementById('auth-user-label').style.display = 'block';
+    document.getElementById('auth-username').value = '';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-username').focus();
   }
 
-  async function handleLogin() {
-    const passwordInput = document.getElementById('password-input').value;
-    const errorDiv = document.getElementById('login-error');
+  function backToProfilesList() {
+    document.getElementById('auth-view-password').style.display = 'none';
+    document.getElementById('auth-view-profiles').style.display = 'block';
+  }
 
-    if (!selectedProfile) return;
+  async function submitLogin() {
+    const pwd = document.getElementById('auth-password').value;
+    if (!pwd) {
+      alert("Veuillez entrer un mot de passe.");
+      return;
+    }
 
-    // Vérification du mot de passe stocké en base
-    if (passwordInput === selectedProfile.password) {
-      localStorage.setItem('basicfit_logged_profile_id', selectedProfile.id);
-      // Redirection vers l'application principale
-      window.location.href = 'app.html'; // ou autre logique de redirection
+    let targetProfile = selectedProfileContext;
+
+    if (targetProfile.name === "Administrateur") {
+      const usernameInput = document.getElementById('auth-username').value.trim();
+      const found = availableProfiles.find(p => p.username === usernameInput);
+      if (found) {
+        targetProfile = found;
+      } else {
+        alert("Nom d'utilisateur inconnu.");
+        return;
+      }
+    }
+
+    if (targetProfile.password && targetProfile.password !== pwd) {
+      alert("Mot de passe incorrect.");
+      return;
+    }
+
+    localStorage.setItem('basicfit_logged_profile_id', targetProfile.id);
+    setLoggedInUser(targetProfile);
+  }
+
+  function setLoggedInUser(profile) {
+    loggedInProfile = profile;
+
+    document.getElementById('dropdown-name-text').innerText = profile.name;
+    document.getElementById('dropdown-role-text').innerText = `${profile.role || ''} ${profile.sector ? '• ' + profile.sector : ''}`;
+    
+    const headerLabel = profile.sector ? `BASIC FIT • SECTEUR : ${profile.sector.toUpperCase()}` : 'BASIC FIT • ACCUEIL GLOBAL';
+    document.getElementById('header-secteur-label').innerText = headerLabel;
+
+    const filterWrapper = document.getElementById('global-filter-wrapper');
+    if (!profile.sector || profile.sector.toLowerCase() === 'admin' || profile.role?.toLowerCase().includes('admin') || profile.role?.toLowerCase().includes('développeur')) {
+      filterWrapper.style.display = 'inline-block';
+      buildGlobalSectorDropdown();
     } else {
-      errorDiv.style.display = 'block';
+      filterWrapper.style.display = 'none';
+      currentGlobalSectorFilter = profile.sector;
+    }
+
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('close-auth-btn').style.display = 'none';
+    document.getElementById('main-app-container').style.display = 'block';
+    
+    initApp();
+  }
+
+  function triggerLogout() {
+    localStorage.removeItem('basicfit_logged_profile_id');
+    loggedInProfile = null;
+    document.getElementById('main-app-container').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    backToProfilesList();
+    initAuthScreen();
+  }
+
+  function triggerSwitchProfile() {
+    document.getElementById('profile-dropdown').classList.remove('open');
+    document.getElementById('main-app-container').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('close-auth-btn').style.display = 'flex';
+    backToProfilesList();
+    initAuthScreen();
+  }
+
+  function cancelSwitchProfile() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-app-container').style.display = 'block';
+  }
+
+  function toggleProfileDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('profile-dropdown').classList.toggle('open');
+  }
+
+  function toggleCustomDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('custom-dropdown-list').classList.toggle('open');
+  }
+
+  window.onclick = function() {
+    const dropdown = document.getElementById('profile-dropdown');
+    if (dropdown) dropdown.classList.remove('open');
+    const customDropdown = document.getElementById('custom-dropdown-list');
+    if (customDropdown) customDropdown.classList.remove('open');
+  }
+
+  async function initApp() {
+    await fetchData();
+    renderWeekNav();
+    renderDays();
+    renderSlots();
+  }
+
+  async function fetchData() {
+    const [slotsRes, agentsRes] = await Promise.all([
+      db.from('slots').select('*'),
+      db.from('agents').select('*')
+    ]);
+    if (!slotsRes.error && slotsRes.data) slotsData = slotsRes.data;
+    if (!agentsRes.error && agentsRes.data) agentsData = agentsRes.data;
+    
+    document.getElementById('agent-count-badge').innerText = agentsData.length;
+  }
+
+  function buildGlobalSectorDropdown() {
+    const list = document.getElementById('custom-dropdown-list');
+    let html = `<div class="custom-dropdown-item ${currentGlobalSectorFilter === 'ALL' ? 'active' : ''}" onclick="selectGlobalFilter('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>`;
+    
+    let sectors = [...new Set(slotsData.map(s => s.club || s.secteur).filter(Boolean))];
+    sectors.forEach(sec => {
+      html += `<div class="custom-dropdown-item ${currentGlobalSectorFilter === sec ? 'active' : ''}" onclick="selectGlobalFilter('${sec}', '${sec}')">📍 ${sec}</div>`;
+    });
+    list.innerHTML = html;
+  }
+
+  function selectGlobalFilter(val, label) {
+    currentGlobalSectorFilter = val;
+    document.getElementById('global-filter-current-label').innerText = label;
+    document.getElementById('custom-dropdown-list').classList.remove('open');
+    buildGlobalSectorDropdown();
+    renderSlots();
+  }
+
+  function renderWeekNav() {
+    let endOfWeek = new Date(currentWeekStart);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    let options = { day: 'numeric', month: 'short' };
+    document.getElementById('week-label').innerText = `Semaine du ${currentWeekStart.toLocaleDateString('fr-FR', options)} au ${endOfWeek.toLocaleDateString('fr-FR', options)}`;
+  }
+
+  function changeWeek(dir) {
+    currentWeekStart.setDate(currentWeekStart.getDate() + (dir * 7));
+    renderWeekNav();
+    renderDays();
+    renderSlots();
+  }
+
+  function renderDays() {
+    const container = document.getElementById('days-container');
+    container.innerHTML = '';
+    let dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+    for (let i = 0; i < 7; i++) {
+      let d = new Date(currentWeekStart);
+      d.setDate(d.getDate() + i);
+
+      let card = document.createElement('div');
+      card.className = `day-card ${i === selectedDayIndex ? 'active' : ''}`;
+      card.innerHTML = `<div style="font-size:0.75rem; text-transform:uppercase;">${dayNames[i]}</div><div style="font-size:1.1rem; font-weight:bold;">${d.getDate()}</div>`;
+      card.onclick = () => {
+        selectedDayIndex = i;
+        renderDays();
+        renderSlots();
+      };
+      container.appendChild(card);
     }
   }
 
-  // Permettre la validation par la touche Entrée
-  document.getElementById('password-input').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-      handleLogin();
+  function renderSlots() {
+    let targetDate = new Date(currentWeekStart);
+    targetDate.setDate(targetDate.getDate() + selectedDayIndex);
+    let dateStr = targetDate.toISOString().split('T')[0];
+
+    document.getElementById('selected-day-title').innerText = targetDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    const list = document.getElementById('slots-list');
+    list.innerHTML = '';
+
+    let daySlots = slotsData.filter(s => s.date === dateStr);
+
+    if (loggedInProfile && loggedInProfile.sector && loggedInProfile.sector.toLowerCase() !== 'admin' && !loggedInProfile.role?.toLowerCase().includes('admin')) {
+      daySlots = daySlots.filter(s => (s.club || s.secteur || '').toLowerCase() === loggedInProfile.sector.toLowerCase());
+    } else if (currentGlobalSectorFilter !== 'ALL') {
+      daySlots = daySlots.filter(s => (s.club || s.secteur || '') === currentGlobalSectorFilter);
     }
-  });
+    
+    document.getElementById('day-covered-count').innerText = `${daySlots.length} créneau(x)`;
 
-  // Lancement au chargement de la page
-  window.onload = initAuthScreen;
+    if (daySlots.length === 0) {
+      list.innerHTML = '<div style="color:white; font-style:italic;">Aucun créneau pour ce jour.</div>';
+      return;
+    }
+
+    daySlots.forEach(s => {
+      let card = document.createElement('div');
+      card.className = 'slot-card';
+      card.innerHTML = `
+        <div>
+          <strong>⏰ ${s.start_time || s.start || ''} - ${s.end_time || s.end || ''}</strong>
+          <div style="font-size:0.85rem; color:#666;">📍 ${s.club || s.secteur || 'Club non spécifié'}</div>
+        </div>
+        <button onclick="deleteSlot('${s.id}')" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:6px 10px; cursor:pointer;">Supprimer</button>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function showForm() {
+    document.getElementById('slot-form').style.display = 'block';
+  }
+
+  function hideForm() {
+    document.getElementById('slot-form').style.display = 'none';
+  }
+
+  async function saveSlot() {
+    let targetDate = new Date(currentWeekStart);
+    targetDate.setDate(targetDate.getDate() + selectedDayIndex);
+    let dateStr = targetDate.toISOString().split('T')[0];
+
+    let start = document.getElementById('form-start').value;
+    let end = document.getElementById('form-end').value;
+    let club = document.getElementById('form-club').value;
+
+    const { error } = await db.from('slots').insert([{ date: dateStr, start_time: start, end_time: end, club: club }]);
+    if (!error) {
+      hideForm();
+      document.getElementById('form-club').value = '';
+      await fetchData();
+      renderSlots();
+    } else {
+      alert("Erreur lors de l'enregistrement");
+    }
+  }
+
+  async function deleteSlot(id) {
+    if (confirm("Voulez-vous supprimer ce créneau ?")) {
+      const { error } = await db.from('slots').delete().eq('id', id);
+      if (!error) {
+        await fetchData();
+        renderSlots();
+      }
+    }
+  }
+
+  function alertModalTotaux() { alert("Section Totaux"); }
+  function alertModalAgents() { alert("Section Agents - Total: " + agentsData.length + " agents enregistrés."); }
+
+  window.onload = function() {
+    checkInitialAuth();
+  };
 </script>
-
 </body>
 </html>
