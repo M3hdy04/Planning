@@ -57,6 +57,8 @@
     .agent-row { display: flex; justify-content: space-between; align-items: center; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; font-weight: 600; }
     .agent-info { display: flex; align-items: center; gap: 10px; }
     .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .rate-input-container { background: #f3f4f6; padding: 10px 14px; border-radius: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600; }
+    .rate-input-container input { width: 80px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; }
   </style>
 </head>
 <body>
@@ -117,6 +119,12 @@
     <div class="toggle-container">
       <button class="toggle-btn" id="btn-semaine" onclick="switchTotalTab('semaine')">Semaine</button>
       <button class="toggle-btn active" id="btn-mois" onclick="switchTotalTab('mois')">Mois</button>
+    </div>
+
+    <!-- Option Taux horaire -->
+    <div class="rate-input-container">
+      <label for="hourly-rate">Taux horaire (€/h) :</label>
+      <input type="number" id="hourly-rate" placeholder="0" min="0" step="0.5" oninput="updateModalContent()">
     </div>
 
     <div class="nav" style="margin-bottom: 12px;">
@@ -404,6 +412,8 @@
     const labelEl = document.getElementById('modal-period-label');
     const totalHoursEl = document.getElementById('modal-total-hours');
     const agentsListEl = document.getElementById('modal-agents-list');
+    const hourlyRateInput = document.getElementById('hourly-rate');
+    const hourlyRate = parseFloat(hourlyRateInput.value) || 0;
 
     let filteredSlots = [];
 
@@ -437,7 +447,6 @@
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
         
-        // Calcul de la durée du créneau + 30 minutes automatiques de pointage
         const diff = (eh * 60 + em) - (sh * 60 + sm) + 30; 
         
         if (diff > 0) {
@@ -449,7 +458,13 @@
 
     const totalH = Math.floor(totalMins / 60);
     const totalM = totalMins % 60;
-    totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
+    
+    if (hourlyRate > 0) {
+      const totalRevenue = ((totalMins / 60) * hourlyRate).toFixed(2);
+      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${totalRevenue} €)`;
+    } else {
+      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
+    }
 
     agentsListEl.innerHTML = '';
     const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
@@ -459,6 +474,12 @@
       const m = ag.minutes % 60;
       const color = agentColors[index % agentColors.length];
 
+      let revenueText = '';
+      if (hourlyRate > 0 && ag.minutes > 0) {
+        const agentRevenue = ((ag.minutes / 60) * hourlyRate).toFixed(2);
+        revenueText = ` <span style="color: #22c55e; font-size: 0.9rem;">(${agentRevenue} €)</span>`;
+      }
+
       const row = document.createElement('div');
       row.className = 'agent-row';
       row.innerHTML = `
@@ -466,7 +487,10 @@
           <div class="dot" style="background: ${color};"></div>
           <span>${ag.name}</span>
         </div>
-        <span>${h}h${m < 10 ? '0' : ''}${m}</span>
+        <div>
+          <span>${h}h${m < 10 ? '0' : ''}${m}</span>
+          ${revenueText}
+        </div>
       `;
       agentsListEl.appendChild(row);
     });
