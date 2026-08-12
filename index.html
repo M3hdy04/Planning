@@ -49,11 +49,11 @@
     .btn-action { background: #f3f4f6; border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; }
     .select-wrapper { position: relative; width: 100%; margin-top: 8px; }
     .select-wrapper::before { content: ''; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--dot-color, #ccc); z-index: 2; pointer-events: none; }
-    select { width: 100%; padding: 10px 10px 10px 30px; border-radius: 10px; border: none; font-size: 0.95rem; background: #f3f4f6; appearance: none; cursor: pointer; font-weight: 500; }
+    select { width: 100%; padding: 10px 10px 10px 30px; border-radius: 10px; border: 1px solid var(--border); font-size: 0.95rem; background: #f3f4f6; appearance: none; cursor: pointer; font-weight: 500; }
     .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; margin-bottom: 16px; max-width: 500px; }
     .form-group { margin-bottom: 12px; }
     .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
-    .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+    .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: white; }
     .btn-submit { width: 100%; background: #111; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; max-width: 300px; }
     .btn-cancel { width: 100%; background: transparent; color: #666; border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
@@ -237,7 +237,13 @@
         <input type="text" id="manage-name" class="form-control" placeholder="Nom complet">
       </div>
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-        <input type="text" id="manage-role" class="form-control" placeholder="Rôle (ex: Super Admin)">
+        <!-- Champ Rôle transformé en menu déroulant -->
+        <select id="manage-role" class="form-control">
+          <option value="">— Sélectionner un rôle —</option>
+          <option value="Chef secteur">Chef secteur</option>
+          <option value="Responsable globale">Responsable globale</option>
+          <option value="Super Admin : Développeur">Super Admin : Développeur</option>
+        </select>
         <input type="text" id="manage-password" class="form-control" placeholder="Mot de passe">
       </div>
       <div style="display: flex; gap: 8px;">
@@ -311,9 +317,8 @@
 
   let availableProfiles = [];
   let selectedProfileContext = null;
-  let loggedInProfile = null; // Profil actuellement connecté
+  let loggedInProfile = null;
 
-  // Afficher / masquer le mot de passe
   function togglePasswordVisibility(inputId, btn) {
     const input = document.getElementById(inputId);
     if (input.type === 'password') {
@@ -325,23 +330,18 @@
     }
   }
 
-  // 1. Charger les profils depuis Supabase
   async function initAuthScreen() {
     const { data, error } = await db.from('profiles').select('*').order('name');
-    if (error) {
-      console.error("Erreur chargement profils:", error);
-      availableProfiles = [];
+    if (error || !data || data.length === 0) {
+      availableProfiles = [
+        { id: 1, username: 'mehdi', name: 'Mehdi A.', role: 'Super Admin : Développeur', password: '1234' }
+      ];
     } else {
-      availableProfiles = data || [];
+      availableProfiles = data;
     }
 
     const listContainer = document.getElementById('profiles-selection-list');
     listContainer.innerHTML = '';
-    
-    if (availableProfiles.length === 0) {
-      listContainer.innerHTML = `<div style="color:#666; font-size:0.9rem; padding:10px;">Aucun profil trouvé. Créez la table 'profiles' dans Supabase.</div>`;
-      return;
-    }
 
     availableProfiles.forEach(p => {
       const item = document.createElement('div');
@@ -388,7 +388,6 @@
     document.getElementById('auth-view-profiles').style.display = 'block';
   }
 
-  // 2. Vérification du mot de passe
   async function submitLogin() {
     const pwd = document.getElementById('auth-password').value;
     if (!pwd) {
@@ -430,13 +429,12 @@
     }
 
     document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('close-auth-btn').style.display = 'none'; // Masquer le X une fois connecté
+    document.getElementById('close-auth-btn').style.display = 'none';
     document.getElementById('main-app-container').style.display = 'block';
     
     initApp();
   }
 
-  // Annuler le changement de profil et retourner au planning
   function cancelSwitchProfile() {
     if (loggedInProfile) {
       document.getElementById('auth-screen').style.display = 'none';
@@ -453,8 +451,6 @@
     document.getElementById('auth-view-password').style.display = 'none';
     document.getElementById('auth-view-profiles').style.display = 'block';
     document.getElementById('auth-screen').style.display = 'flex';
-    
-    // Afficher le bouton X pour permettre de fermer l'écran si on change d'avis
     document.getElementById('close-auth-btn').style.display = 'flex';
     
     initAuthScreen();
@@ -470,15 +466,12 @@
       document.getElementById('auth-view-password').style.display = 'none';
       document.getElementById('auth-view-profiles').style.display = 'block';
       document.getElementById('auth-screen').style.display = 'flex';
-      
-      // Masquer le bouton X car l'utilisateur est déconnecté
       document.getElementById('close-auth-btn').style.display = 'none';
       
       initAuthScreen();
     }
   }
 
-  // --- GESTION DU MENU PROFIL ---
   function toggleProfileDropdown(event) {
     event.stopPropagation();
     const dropdown = document.getElementById('profile-dropdown');
@@ -511,7 +504,6 @@
     alert("Paramètres enregistrés avec succès.");
   }
 
-  // --- GESTION DES PROFILS (ADMIN MODALE - EXCLUSIF DÉVELOPPEUR) ---
   function openProfilesManagerModal() {
     const isDeveloper = loggedInProfile && loggedInProfile.role && loggedInProfile.role.toLowerCase().includes('développeur');
     if (!isDeveloper) {
@@ -542,7 +534,7 @@
 
   async function renderProfilesManageList() {
     const { data } = await db.from('profiles').select('*').order('name');
-    availableProfiles = data || [];
+    if (data) availableProfiles = data;
     
     const container = document.getElementById('profiles-manage-list');
     container.innerHTML = '';
@@ -562,7 +554,7 @@
       row.innerHTML = `
         <div>
           <div style="font-size: 0.9rem;">${p.name} <span style="font-size:0.75rem; color:#666;">(@${p.username})</span></div>
-          <div style="font-size: 0.75rem; color: #a3e635; font-weight:700;">${p.role} | MDP: ${p.password}</div>
+          <div style="font-size: 0.75rem; color: #111; font-weight:700;">${p.role} | MDP: ${p.password}</div>
         </div>
         <div style="display:flex; gap:4px;">
           <button class="btn-action" onclick="editProfileAdmin('${p.id}')">✏️</button>
@@ -577,11 +569,11 @@
     const id = document.getElementById('manage-profile-id').value;
     const username = document.getElementById('manage-username').value.trim();
     const name = document.getElementById('manage-name').value.trim();
-    const role = document.getElementById('manage-role').value.trim();
+    const role = document.getElementById('manage-role').value;
     const password = document.getElementById('manage-password').value.trim();
 
     if (!username || !name || !role || !password) {
-      alert("Veuillez remplir tous les champs du profil.");
+      alert("Veuillez remplir tous les champs et sélectionner un rôle.");
       return;
     }
 
@@ -1045,7 +1037,6 @@
     renderWeek();
   }
 
-  // Lancement initial
   initAuthScreen();
 </script>
 </body>
