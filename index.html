@@ -121,19 +121,23 @@
       <button class="toggle-btn active" id="btn-mois" onclick="switchTotalTab('mois')">Mois</button>
     </div>
 
-    <!-- Option Taux horaire -->
-    <div class="rate-input-container">
+    <!-- Navigation de la période et Bouton pour afficher/masquer le taux horaire -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+      <div class="nav" style="margin-bottom: 0; flex: 1;">
+        <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
+        <strong id="modal-period-label" style="text-align: center; flex: 1;">Août 2026</strong>
+        <button class="btn-icon" onclick="changeModalDate(1)">›</button>
+      </div>
+      <button class="btn-action" id="toggle-rate-btn" onclick="toggleRateInput()" title="Ajouter taux horaire" style="margin-left: 8px; width: 36px; height: 36px; border-radius: 50%; background: #111; color: #a3e635; font-weight: bold;">+</button>
+    </div>
+
+    <!-- Option Taux horaire (masquée par défaut) -->
+    <div class="rate-input-container" id="rate-container" style="display: none; margin-top: 12px;">
       <label for="hourly-rate">Taux horaire (€/h) :</label>
       <input type="number" id="hourly-rate" placeholder="0" min="0" step="0.5" oninput="updateModalContent()">
     </div>
 
-    <div class="nav" style="margin-bottom: 12px;">
-      <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
-      <strong id="modal-period-label">Août 2026</strong>
-      <button class="btn-icon" onclick="changeModalDate(1)">›</button>
-    </div>
-
-    <div class="total-banner">
+    <div class="total-banner" style="margin-top: 12px;">
       <h2 id="modal-total-hours">0h00</h2>
       <p>heures couvertes au total (+30 min de pointage incluses)</p>
     </div>
@@ -406,6 +410,22 @@
       modalDate.setDate(modalDate.getDate() + (direction * 7));
     }
     updateModalContent();
+  }
+
+  function toggleRateInput() {
+    const container = document.getElementById('rate-container');
+    const btn = document.getElementById('toggle-rate-btn');
+    if (container.style.display === 'none') {
+      container.style.display = 'flex';
+      btn.innerText = '−';
+      btn.title = 'Masquer taux horaire';
+    } else {
+      container.style.display = 'none';
+      btn.innerText = '+';
+      btn.title = 'Ajouter taux horaire';
+      document.getElementById('hourly-rate').value = '';
+      updateModalContent();
+    }
   }
 
   function updateModalContent() {
