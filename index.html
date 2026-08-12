@@ -726,7 +726,16 @@
   }
 
   async function fetchAgents() {
-    const { data } = await db.from('agents').select('*').order('name');
+    let query = db.from('agents').select('*').order('name');
+
+    const isGlobalRole = loggedInProfile && loggedInProfile.role && (loggedInProfile.role.toLowerCase().includes('développeur') || loggedInProfile.role.toLowerCase().includes('responsable global'));
+    
+    if (!isGlobalRole && loggedInProfile && loggedInProfile.sector) {
+      const primarySector = loggedInProfile.sector.split(',')[0].trim().toLowerCase();
+      query = query.eq('secteur', primarySector);
+    }
+
+    const { data } = await query;
     agents = data || [];
     document.getElementById('agent-count-badge').innerText = agents.length;
   }
@@ -950,7 +959,19 @@
       return;
     }
 
-    const { error } = await db.from('agents').insert([{ name, phone, email, rib }]);
+    let currentSector = '';
+    if (loggedInProfile && loggedInProfile.sector) {
+      currentSector = loggedInProfile.sector.split(',')[0].trim().toLowerCase();
+    }
+
+    const { error } = await db.from('agents').insert([{ 
+      name, 
+      phone, 
+      email, 
+      rib, 
+      secteur: currentSector 
+    }]);
+
     if (!error) {
       document.getElementById('new-agent-name').value = '';
       document.getElementById('new-agent-phone').value = '';
