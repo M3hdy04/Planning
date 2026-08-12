@@ -474,8 +474,13 @@
     const totalM = totalMins % 60;
     const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
 
-    let totalCalculatedRevenueSum = 0;
-    let hasAnyRate = false;
+    let activeRateUsed = null;
+    for (let id in agentRates) {
+      if (agentRates[id] !== undefined && agentRates[id] >= 0) {
+        activeRateUsed = agentRates[id];
+        break; 
+      }
+    }
 
     sortedAgents.forEach(ag => {
       const rightContainer = document.getElementById(`agent-right-${ag.id}`);
@@ -490,9 +495,7 @@
         const activeRate = agentRates[ag.id];
         
         if (activeRate !== undefined && activeRate >= 0) {
-          hasAnyRate = true;
           const agentRevenue = (ag.minutes / 60) * activeRate;
-          totalCalculatedRevenueSum += agentRevenue;
           const agentRevenueStr = agentRevenue.toFixed(2);
           if (existingRev) {
             existingRev.innerText = `(${agentRevenueStr} €)`;
@@ -506,21 +509,9 @@
     });
 
     const totalHoursEl = document.getElementById('modal-total-hours');
-
-    // MODIFICATION PRINCIPALE : Si un taux est saisi pour un agent, on multiplie directement le TOTAL GLOBAL DES HEURES par ce taux (comme demandé)
-    let globalCalculatedRevenue = null;
-    let activeRateUsed = null;
-
-    for (let id in agentRates) {
-      if (agentRates[id] !== undefined && agentRates[id] >= 0) {
-        activeRateUsed = agentRates[id];
-        break; // On prend le premier taux actif trouvé ou on gère selon le besoin
-      }
-    }
-
     if (activeRateUsed !== null) {
       const totalHoursDecimal = totalMins / 60;
-      globalCalculatedRevenue = totalHoursDecimal * activeRateUsed;
+      const globalCalculatedRevenue = totalHoursDecimal * activeRateUsed;
       totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${globalCalculatedRevenue.toFixed(2)} €)`;
     } else {
       totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
