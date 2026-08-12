@@ -90,7 +90,7 @@
 </head>
 <body>
 
-<!-- ÉCRAN DE CONNEXION / SÉLECTION DE PROFIL (Affiché par défaut ou lors de la déconnexion) -->
+<!-- ÉCRAN DE CONNEXION / SÉLECTION DE PROFIL -->
 <div id="auth-screen">
   <div class="auth-card" id="auth-view-profiles">
     <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; margin-bottom: 6px;">Basic Fit • Planning</div>
@@ -98,7 +98,7 @@
     <p>Choisissez votre profil pour accéder au planning</p>
     
     <div id="profiles-selection-list">
-      <!-- Rempli dynamiquement -->
+      <!-- Chargé dynamiquement depuis Supabase -->
     </div>
     
     <button class="btn-cancel" style="margin-top: 16px; border:none; color:#111; font-weight:700;" onclick="showLoginPasswordForm('Administrateur')">🔑 Connexion par Identifiant / Mot de passe</button>
@@ -112,7 +112,7 @@
     
     <div class="form-group" style="text-align: left;">
       <label id="auth-user-label">Nom d'utilisateur</label>
-      <input type="text" id="auth-username" class="form-control" placeholder="Nom d'utilisateur" value="Mehdi A." style="display:none;">
+      <input type="text" id="auth-username" class="form-control" placeholder="Nom d'utilisateur" style="display:none;">
       <input type="password" id="auth-password" class="form-control" placeholder="••••••••" style="margin-top: 4px;">
     </div>
     
@@ -133,7 +133,7 @@
       <div class="profile-btn" onclick="toggleProfileDropdown(event)" title="Profil">👤</div>
     </div>
 
-    <!-- Menu déroulant épuré et fonctionnel -->
+    <!-- Menu déroulant profil -->
     <div class="profile-dropdown" id="profile-dropdown">
       <div class="profile-dropdown-header">
         <div class="role" id="dropdown-role-text">Super Admin : Développeur</div>
@@ -262,19 +262,27 @@
 
   const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
-  // Liste des profils disponibles pour la sélection/changement
-  const availableProfiles = [
-    { name: "Mehdi A.", role: "Super Admin : Développeur" },
-    { name: "Manager Club", role: "Responsable Planning" },
-    { name: "Superviseur", role: "Superviseur Régional" }
-  ];
-
+  let availableProfiles = [];
   let selectedProfileContext = null;
 
-  function initAuthScreen() {
+  // 1. Charger les profils depuis Supabase au démarrage de l'écran de connexion
+  async function initAuthScreen() {
+    const { data, error } = await db.from('profiles').select('*').order('name');
+    if (error) {
+      console.error("Erreur chargement profils:", error);
+      availableProfiles = [];
+    } else {
+      availableProfiles = data || [];
+    }
+
     const listContainer = document.getElementById('profiles-selection-list');
     listContainer.innerHTML = '';
     
+    if (availableProfiles.length === 0) {
+      listContainer.innerHTML = `<div style="color:#666; font-size:0.9rem; padding:10px;">Aucun profil trouvé. Créez la table 'profiles' dans Supabase.</div>`;
+      return;
+    }
+
     availableProfiles.forEach(p => {
       const item = document.createElement('div');
       item.className = 'profile-list-item';
@@ -303,14 +311,14 @@
   }
 
   function showLoginPasswordForm(mode) {
-    selectedProfileContext = { name: "Administrateur", role: mode };
+    selectedProfileContext = { name: "Administrateur", role: mode, username: "admin" };
     document.getElementById('auth-view-profiles').style.display = 'none';
     document.getElementById('auth-view-password').style.display = 'block';
     document.getElementById('auth-target-profile-title').innerText = "Connexion Administrateur";
     document.getElementById('auth-target-profile-sub').innerText = "Entrez vos identifiants de compte";
     document.getElementById('auth-username').style.display = 'block';
     document.getElementById('auth-user-label').style.display = 'block';
-    document.getElementById('auth-username').value = 'Mehdi A.';
+    document.getElementById('auth-username').value = '';
     document.getElementById('auth-password').value = '';
     document.getElementById('auth-password').focus();
   }
@@ -320,22 +328,37 @@
     document.getElementById('auth-view-profiles').style.display = 'block';
   }
 
-  function submitLogin() {
+  // 2. Vérification sécurisée du mot de passe via la base de données
+  async function submitLogin() {
     const pwd = document.getElementById('auth-password').value;
     if (!pwd) {
       alert("Veuillez entrer un mot de passe.");
       return;
     }
 
-    // Appliquer le profil choisi
-    if (selectedProfileContext) {
-      document.getElementById('dropdown-name-text').innerText = selectedProfileContext.name;
-      document.getElementById('dropdown-role-text').innerText = selectedProfileContext.role;
-      document.getElementById('account-name').value = selectedProfileContext.name;
-      document.getElementById('account-role').value = selectedProfileContext.role;
+    let targetProfile = selectedProfileContext;
+
+    if (targetProfile.name === "Administrateur") {
+      const usernameInput = document.getElementById('auth-username').value.trim();
+      const found = availableProfiles.find(p => p.username === usernameInput);
+      if (found) {
+        targetProfile = found;
+      } else {
+        alert("Nom d'utilisateur inconnu.");
+        return;
+      }
     }
 
-    // Masquer l'écran d'authentification et afficher l'application
+    if (targetProfile.password && targetProfile.password !== pwd) {
+      alert("Mot de passe incorrect.");
+      return;
+    }
+
+    document.getElementById('dropdown-name-text').innerText = targetProfile.name;
+    document.getElementById('dropdown-role-text').innerText = targetProfile.role;
+    document.getElementById('account-name').value = targetProfile.name;
+    document.getElementById('account-role').value = targetProfile.role;
+
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('main-app-container').style.display = 'block';
     
@@ -346,7 +369,6 @@
     const dropdown = document.getElementById('profile-dropdown');
     dropdown.classList.remove('open');
     
-    // Réafficher l'écran de sélection des profils
     document.getElementById('main-app-container').style.display = 'none';
     document.getElementById('auth-view-password').style.display = 'none';
     document.getElementById('auth-view-profiles').style.display = 'block';
@@ -830,7 +852,7 @@
     renderWeek();
   }
 
-  // Démarrage initial de l'authentification
+  // Lancement initial de l'authentification dynamique
   initAuthScreen();
 </script>
 </body>
