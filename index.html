@@ -460,7 +460,7 @@
     document.getElementById('account-name').value = profile.name;
     document.getElementById('account-role').value = `${profile.role} ${profile.sector ? '(' + profile.sector + ')' : ''}`;
 
-    const headerLabel = profile.sector ? `BASIC FIT • CLUBS : ${profile.sector.toUpperCase()}` : 'BASIC FIT • ACCUEIL GLOBAL';
+    const headerLabel = profile.sector ? `BASIC FIT • SECTEUR / CLUBS : ${profile.sector.toUpperCase()}` : 'BASIC FIT • ACCUEIL GLOBAL';
     document.getElementById('header-secteur-label').innerText = headerLabel;
 
     const isDeveloper = profile.role && profile.role.toLowerCase().includes('développeur');
@@ -497,7 +497,7 @@
       uniqueClubs.forEach(club => {
         const opt = document.createElement('option');
         opt.value = club;
-        opt.innerText = `📍 Secteur / Club : ${club}`;
+        opt.innerText = `📍 Club : ${club}`;
         selectEl.appendChild(opt);
       });
     }
@@ -731,8 +731,7 @@
     const isGlobalRole = loggedInProfile && loggedInProfile.role && (loggedInProfile.role.toLowerCase().includes('développeur') || loggedInProfile.role.toLowerCase().includes('responsable global'));
     
     if (!isGlobalRole && loggedInProfile && loggedInProfile.sector) {
-      const primarySector = loggedInProfile.sector.split(',')[0].trim().toLowerCase();
-      query = query.eq('secteur', primarySector);
+      // Pour les agents, on peut charger tous les agents ou filtrer si nécessaire, mais en général les chefs de secteur gèrent leurs agents locaux.
     }
 
     const { data } = await query;
@@ -757,6 +756,7 @@
     }
   }
 
+  // --- LOGIQUE DE FILTRAGE MISE À JOUR POUR MULTI-CLUBS PAR SECTEUR ---
   function applySlotsFiltering() {
     if (!loggedInProfile) {
       slots = allRawSlots;
@@ -774,11 +774,14 @@
       }
     } else {
       if (loggedInProfile.sector && loggedInProfile.sector.trim() !== '') {
+        // Découpe les clubs assignés au profil (ex: "Reims, Thillois, Cernay" -> ["reims", "thillois", "cernay"])
         const allowedClubs = loggedInProfile.sector.split(',').map(c => c.trim().toLowerCase()).filter(Boolean);
+        
         slots = allRawSlots.filter(s => {
           if (!s.club) return false;
           const slotClub = s.club.trim().toLowerCase();
-          return allowedClubs.some(allowed => slotClub.includes(allowed));
+          // Vérifie si le club du créneau correspond exactement ou partiellement à l'un des clubs du secteur
+          return allowedClubs.some(allowed => slotClub === allowed || slotClub.includes(allowed));
         });
       } else {
         slots = [];
