@@ -55,18 +55,15 @@
     .total-banner h2 { color: #a3e635; margin: 0 0 4px 0; font-size: 2.2rem; }
     .total-banner p { margin: 0; font-size: 0.85rem; opacity: 0.8; }
     
-    /* Ligne d'agent dans la modale avec accordéon pour le taux horaire individuel */
-    .agent-card-item { background: white; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; transition: all 0.2s ease; }
-    .agent-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; font-weight: 600; user-select: none; }
-    .agent-row:hover { background: #fafafa; }
-    .agent-info { display: flex; align-items: center; gap: 10px; }
+    /* Lignes agent */
+    .agent-line { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .agent-left { display: flex; align-items: center; gap: 8px; flex: 1; }
     .dot { width: 10px; height: 10px; border-radius: 50%; }
-    .agent-right { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+    .agent-right { display: flex; align-items: center; gap: 8px; }
     
-    /* Panneau de configuration du taux horaire individuel qui s'ouvre au clic */
-    .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 12px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
-    .agent-rate-panel.open { display: flex; }
-    .agent-rate-panel input { width: 90px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; }
+    /* Champ taux horaire individuel (affiché par le "+") */
+    .rate-field { display: flex; align-items: center; gap: 4px; border: 1px solid #ddd; padding: 2px 6px; border-radius: 6px; font-size: 0.8rem; background: #f9f9f9; width: 70px; }
+    .rate-field input { border: none; background: transparent; width: 35px; text-align: right; outline: none; }
   </style>
 </head>
 <body>
@@ -119,6 +116,7 @@
   </div>
 </div>
 
+<!-- MODALE TOTAUX -->
 <div class="modal-overlay" id="total-modal" style="display: none;">
   <div class="modal-card">
     <button class="modal-close" onclick="closeTotalModal()">✕</button>
@@ -129,43 +127,18 @@
       <button class="toggle-btn active" id="btn-mois" onclick="switchTotalTab('mois')">Mois</button>
     </div>
 
-    <!-- Navigation de la période et Bouton "+" -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-      <div class="nav" style="margin-bottom: 0; flex: 1;">
-        <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
-        <strong id="modal-period-label" style="text-align: center; flex: 1;">Août 2026</strong>
-        <button class="btn-icon" onclick="changeModalDate(1)">›</button>
-      </div>
-      <button class="btn-action" id="toggle-rate-btn" onclick="toggleGlobalRateBox()" title="Taux horaire global" style="margin-left: 8px; width: 36px; height: 36px; border-radius: 50%; background: #111; color: #a3e635; font-weight: bold;">+</button>
+    <div class="nav" style="margin-bottom: 16px;">
+      <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
+      <strong id="modal-period-label">Août 2026</strong>
+      <button class="btn-icon" onclick="changeModalDate(1)">›</button>
     </div>
 
-    <!-- Option Taux horaire global (masquée par défaut, s'ouvre avec le bouton +) -->
-    <div style="background: #f3f4f6; padding: 10px 14px; border-radius: 12px; margin-bottom: 12px; display: none; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600;" id="global-rate-container">
-      <label for="hourly-rate">Taux horaire global (€/h) :</label>
-      <input type="number" id="hourly-rate" placeholder="0" min="0" step="0.5" style="width: 80px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-weight: 600; background: white;" oninput="updateModalContent()">
-    </div>
-
-    <div class="total-banner" style="margin-top: 12px;">
+    <div class="total-banner">
       <h2 id="modal-total-hours">0h00</h2>
-      <p>heures couvertes au total (+30 min de pointage incluses)</p>
+      <p>heures couvertes au total</p>
     </div>
 
-    <div style="font-size: 0.8rem; color: #666; margin-bottom: 8px; text-align: center;">💡 Appuyez sur un agent pour configurer son taux horaire individuel</div>
     <div id="modal-agents-list"></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="agents-modal" style="display: none;">
-  <div class="modal-card">
-    <button class="modal-close" onclick="closeAgentsModal()">✕</button>
-    <h3 style="margin-top:0; margin-bottom: 16px;">Gestion des agents</h3>
-    
-    <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-      <input type="text" id="new-agent-name" class="form-control" placeholder="Nom du nouvel agent">
-      <button class="btn-submit" style="margin-top:0; width: auto; padding: 0 16px;" onclick="addAgent()">Ajouter</button>
-    </div>
-
-    <div id="agents-manage-list"></div>
   </div>
 </div>
 
@@ -178,12 +151,9 @@
   let selectedDateStr = new Date().toISOString().split('T')[0];
   let agents = [];
   let slots = [];
-  
+  let showRates = false; // État pour afficher/masquer les taux individuels
   let modalTab = 'mois';
   let modalDate = new Date();
-  let agentRates = {}; // Stocke les taux individuels { agentId: rate }
-  let openRateAgentId = null; // ID de l'agent dont le panneau de taux est ouvert
-
   const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
   async function init() {
@@ -209,32 +179,19 @@
     const container = document.getElementById('days-container');
     container.innerHTML = '';
     const startOfWeek = getMonday(currentDate);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(endOfWeek.getDate() + 6);
-    document.getElementById('week-label').innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'})}`;
-
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
       const dayName = d.toLocaleDateString('fr-FR', { weekday: 'short' });
       const dayNum = d.getDate();
-
       const daySlots = slots.filter(s => s.date_str === dateStr);
-      const totalDay = daySlots.length;
       const coveredDay = daySlots.filter(s => s.agent_id !== null).length;
-      const percent = totalDay > 0 ? (coveredDay / totalDay) * 100 : 0;
-
+      const percent = daySlots.length > 0 ? (coveredDay / daySlots.length) * 100 : 0;
+      
       const card = document.createElement('div');
       card.className = `day-card ${dateStr === selectedDateStr ? 'active' : ''}`;
-      card.innerHTML = `
-        <div style="font-size:0.8rem">${dayName}</div>
-        <strong>${dayNum}</strong>
-        <div class="day-progress">
-          <div class="day-progress-bar" style="width: ${percent}%;"></div>
-        </div>
-      `;
+      card.innerHTML = `<div>${dayName}</div><strong>${dayNum}</strong><div class="day-progress"><div class="day-progress-bar" style="width: ${percent}%;"></div></div>`;
       card.onclick = () => { selectedDateStr = dateStr; renderWeek(); renderSlots(); };
       container.appendChild(card);
     }
@@ -244,97 +201,20 @@
     const list = document.getElementById('slots-list');
     list.innerHTML = '';
     const daySlots = slots.filter(s => s.date_str === selectedDateStr);
-
-    const selDate = new Date(selectedDateStr + 'T00:00:00');
-    document.getElementById('selected-day-title').innerText = selDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-    const covered = daySlots.filter(s => s.agent_id !== null).length;
-    document.getElementById('day-covered-count').innerText = `${covered}/${daySlots.length} couverts`;
-
-    if (daySlots.length === 0) {
-      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px; grid-column: 1 / -1;">Aucun créneau ce jour-là.</div>`;
-      return;
-    }
-
     daySlots.forEach(s => {
       const card = document.createElement('div');
       card.className = 'slot-card';
-      
       let agentOptions = `<option value="">— À pourvoir —</option>`;
-      let selectedAgentColor = '#ccc';
-
-      agents.forEach((a, index) => {
-        const isSelected = s.agent_id == a.id;
-        if (isSelected) {
-          selectedAgentColor = agentColors[index % agentColors.length];
-        }
-        agentOptions += `<option value="${a.id}" ${isSelected ? 'selected' : ''}>${a.name}</option>`;
-      });
-
-      card.style.setProperty('--dot-color', selectedAgentColor);
-
+      agents.forEach((a) => agentOptions += `<option value="${a.id}" ${s.agent_id == a.id ? 'selected' : ''}>${a.name}</option>`);
       card.innerHTML = `
         <div class="slot-top">
-          <div>
-            <div class="slot-time">${s.start} – ${s.end}</div>
-            <div class="slot-club">📍 ${s.club || 'Non précisé'}</div>
-          </div>
-          <div class="slot-actions">
-            <button class="btn-action" onclick="editSlot('${s.id}')">✏️</button>
-            <button class="btn-action" onclick="deleteSlot('${s.id}')">🗑️</button>
-          </div>
+          <div><div class="slot-time">${s.start} – ${s.end}</div><div class="slot-club">📍 ${s.club || 'Non précisé'}</div></div>
+          <div class="slot-actions"><button class="btn-action" onclick="deleteSlot('${s.id}')">🗑️</button></div>
         </div>
-        <div class="select-wrapper">
-          <select onchange="updateAgent('${s.id}', this.value)">${agentOptions}</select>
-        </div>
+        <div class="select-wrapper"><select onchange="updateAgent('${s.id}', this.value)">${agentOptions}</select></div>
       `;
       list.appendChild(card);
     });
-  }
-
-  function showForm(slot = null) {
-    const formCard = document.getElementById('slot-form');
-    formCard.style.display = 'block';
-    formCard.scrollIntoView({ behavior: 'smooth' });
-
-    if (slot) {
-      document.getElementById('form-title').innerText = "Modifier le créneau";
-      document.getElementById('edit-id').value = slot.id;
-      document.getElementById('form-start').value = slot.start;
-      document.getElementById('form-end').value = slot.end;
-      document.getElementById('form-club').value = slot.club || '';
-    } else {
-      document.getElementById('form-title').innerText = "Nouveau créneau";
-      document.getElementById('edit-id').value = '';
-      document.getElementById('form-start').value = '09:00';
-      document.getElementById('form-end').value = '13:00';
-      document.getElementById('form-club').value = '';
-    }
-  }
-
-  function hideForm() {
-    document.getElementById('slot-form').style.display = 'none';
-  }
-
-  async function saveSlot() {
-    const id = document.getElementById('edit-id').value;
-    const start = document.getElementById('form-start').value;
-    const end = document.getElementById('form-end').value;
-    const club = document.getElementById('form-club').value;
-
-    if (id) {
-      await db.from('slots').update({ start, end, club }).eq('id', id);
-    } else {
-      await db.from('slots').insert([{ date_str: selectedDateStr, start, end, club }]);
-    }
-
-    hideForm();
-    await fetchSlots();
-  }
-
-  function editSlot(id) {
-    const slot = slots.find(s => String(s.id) === String(id));
-    if (slot) showForm(slot);
   }
 
   async function updateAgent(slotId, agentId) {
@@ -349,64 +229,24 @@
     }
   }
 
-  function openAgentsModal() {
-    document.getElementById('agents-modal').style.display = 'flex';
-    renderAgentsManageList();
-  }
-
-  function closeAgentsModal() {
-    document.getElementById('agents-modal').style.display = 'none';
-  }
-
-  async function addAgent() {
-    const nameInput = document.getElementById('new-agent-name');
-    const name = nameInput.value.trim();
-    if (!name) return;
-
-    await db.from('agents').insert([{ name }]);
-    nameInput.value = '';
-    await fetchAgents();
-    renderAgentsManageList();
-    renderSlots();
-  }
-
-  async function deleteAgent(id) {
-    if (confirm('Supprimer cet agent ?')) {
-      await db.from('agents').delete().eq('id', id);
-      await fetchAgents();
-      renderAgentsManageList();
-      fetchSlots();
-    }
-  }
-
-  function renderAgentsManageList() {
-    const container = document.getElementById('agents-manage-list');
-    container.innerHTML = '';
-    agents.forEach((a, index) => {
-      const color = agentColors[index % agentColors.length];
-      const row = document.createElement('div');
-      row.className = 'agent-row';
-      row.innerHTML = `
-        <div class="agent-info">
-          <div class="dot" style="background: ${color};"></div>
-          <span>${a.name}</span>
-        </div>
-        <button class="btn-action" onclick="deleteAgent('${a.id}')">🗑️</button>
-      `;
-      container.appendChild(row);
-    });
+  function showForm() { document.getElementById('slot-form').style.display = 'block'; }
+  function hideForm() { document.getElementById('slot-form').style.display = 'none'; }
+  async function saveSlot() {
+    const start = document.getElementById('form-start').value;
+    const end = document.getElementById('form-end').value;
+    const club = document.getElementById('form-club').value;
+    await db.from('slots').insert([{ date_str: selectedDateStr, start, end, club }]);
+    hideForm();
+    await fetchSlots();
   }
 
   function openTotalModal() {
-    modalDate = new Date(currentDate);
     document.getElementById('total-modal').style.display = 'flex';
     updateModalContent();
   }
-
-  function closeTotalModal() {
-    document.getElementById('total-modal').style.display = 'none';
-  }
-
+  
+  function closeTotalModal() { document.getElementById('total-modal').style.display = 'none'; }
+  
   function switchTotalTab(tab) {
     modalTab = tab;
     document.getElementById('btn-semaine').className = `toggle-btn ${tab === 'semaine' ? 'active' : ''}`;
@@ -414,158 +254,37 @@
     updateModalContent();
   }
 
-  function changeModalDate(direction) {
-    if (modalTab === 'mois') {
-      modalDate.setMonth(modalDate.getMonth() + direction);
-    } else {
-      modalDate.setDate(modalDate.getDate() + (direction * 7));
-    }
-    updateModalContent();
-  }
-
-  function toggleGlobalRateBox() {
-    const container = document.getElementById('global-rate-container');
-    const btn = document.getElementById('toggle-rate-btn');
-    if (container.style.display === 'none') {
-      container.style.display = 'flex';
-      btn.innerText = '−';
-    } else {
-      container.style.display = 'none';
-      btn.innerText = '+';
-      document.getElementById('hourly-rate').value = '';
-    }
-    updateModalContent();
-  }
-
-  function toggleAgentRatePanel(agentId, event) {
-    // Éviter de déclencher si on clique directement dans l'input
-    if (event && event.target.tagName === 'INPUT') return;
-    
-    if (openRateAgentId === agentId) {
-      openRateAgentId = null; // Fermer si on re-clique dessus
-    } else {
-      openRateAgentId = agentId; // Ouvrir celui-ci
-    }
-    updateModalContent();
-  }
-
-  function updateAgentRate(agentId, val) {
-    const rate = parseFloat(val);
-    if (!isNaN(rate) && rate > 0) {
-      agentRates[agentId] = rate;
-    } else {
-      delete agentRates[agentId];
-    }
-    updateModalContent();
-  }
-
   function updateModalContent() {
-    const labelEl = document.getElementById('modal-period-label');
-    const totalHoursEl = document.getElementById('modal-total-hours');
     const agentsListEl = document.getElementById('modal-agents-list');
-    const hourlyRateInput = document.getElementById('hourly-rate');
-    const globalHourlyRate = parseFloat(hourlyRateInput.value) || 0;
+    agentsListEl.innerHTML = `
+      <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+        <button class="btn-action" onclick="showRates = !showRates; updateModalContent();" style="width:30px; height:30px;">+</button>
+      </div>
+    `;
 
-    let filteredSlots = [];
-
-    if (modalTab === 'mois') {
-      const year = modalDate.getFullYear();
-      const month = modalDate.getMonth();
-      labelEl.innerText = modalDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-      
-      filteredSlots = slots.filter(s => {
-        const d = new Date(s.date_str);
-        return d.getFullYear() === year && d.getMonth() === month;
-      });
-    } else {
-      const startOfWeek = getMonday(modalDate);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(endOfWeek.getDate() + 6);
-      labelEl.innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'})}`;
-
-      filteredSlots = slots.filter(s => {
-        const d = new Date(s.date_str);
-        return d >= startOfWeek && d <= endOfWeek;
-      });
-    }
-
-    let agentHours = {};
-    agents.forEach(a => agentHours[a.id] = { id: a.id, name: a.name, minutes: 0 });
-
-    let totalMins = 0;
-    let totalCalculatedRevenue = 0;
-
-    filteredSlots.forEach(s => {
-      if (s.start && s.end && s.agent_id && agentHours[s.agent_id]) {
+    // Calcul des heures par agent
+    agents.forEach((a, index) => {
+      const color = agentColors[index % agentColors.length];
+      const agSlots = slots.filter(s => s.agent_id == a.id);
+      let mins = 0;
+      agSlots.forEach(s => {
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
-        
-        const diff = (eh * 60 + em) - (sh * 60 + sm) + 30; 
-        
-        if (diff > 0) {
-          agentHours[s.agent_id].minutes += diff;
-          totalMins += diff;
-        }
-      }
-    });
+        mins += (eh * 60 + em) - (sh * 60 + sm) + 30;
+      });
+      const h = Math.floor(mins/60);
+      const m = mins%60;
 
-    const totalH = Math.floor(totalMins / 60);
-    const totalM = totalMins % 60;
-
-    agents.forEach(a => {
-      const ag = agentHours[a.id];
-      if (ag && ag.minutes > 0) {
-        const hours = ag.minutes / 60;
-        const rate = (agentRates[a.id] !== undefined) ? agentRates[a.id] : globalHourlyRate;
-        if (rate > 0) {
-          totalCalculatedRevenue += hours * rate;
-        }
-      }
-    });
-    
-    if (globalHourlyRate > 0 || Object.keys(agentRates).length > 0) {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${totalCalculatedRevenue.toFixed(2)} €)`;
-    } else {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
-    }
-
-    agentsListEl.innerHTML = '';
-    const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
-
-    sortedAgents.forEach((ag, index) => {
-      const h = Math.floor(ag.minutes / 60);
-      const m = ag.minutes % 60;
-      const color = agentColors[index % agentColors.length];
-
-      let revenueText = '';
-      const activeRate = (agentRates[ag.id] !== undefined) ? agentRates[ag.id] : globalHourlyRate;
-      if (activeRate > 0 && ag.minutes > 0) {
-        const agentRevenue = ((ag.minutes / 60) * activeRate).toFixed(2);
-        revenueText = ` <span style="color: #22c55e; font-size: 0.85rem;">(${agentRevenue} €)</span>`;
-      }
-
-      const isOpen = openRateAgentId === ag.id;
-      const currentVal = agentRates[ag.id] !== undefined ? agentRates[ag.id] : '';
-
-      const cardItem = document.createElement('div');
-      cardItem.className = 'agent-card-item';
-      cardItem.innerHTML = `
-        <div class="agent-row" onclick="toggleAgentRatePanel('${ag.id}', event)">
-          <div class="agent-info">
-            <div class="dot" style="background: ${color};"></div>
-            <span>${ag.name}</span>
-          </div>
-          <div class="agent-right">
-            <span>${h}h${m < 10 ? '0' : ''}${m}</span>
-            ${revenueText}
-          </div>
-        </div>
-        <div class="agent-rate-panel ${isOpen ? 'open' : ''}">
-          <span>Taux horaire personnalisé :</span>
-          <input type="number" placeholder="€/h" min="0" step="0.5" value="${currentVal}" oninput="updateAgentRate('${ag.id}', this.value)">
+      const row = document.createElement('div');
+      row.className = 'agent-line';
+      row.innerHTML = `
+        <div class="agent-left"><div class="dot" style="background:${color};"></div><span>${a.name}</span></div>
+        <div class="agent-right">
+          ${showRates ? `<div class="rate-field">€/h <input type="number" value="0"></div>` : ''}
+          <span>${h}h${m < 10 ? '0' : ''}${m}</span>
         </div>
       `;
-      agentsListEl.appendChild(cardItem);
+      agentsListEl.appendChild(row);
     });
   }
 
@@ -576,11 +295,8 @@
     return new Date(date.setDate(diff));
   }
 
-  function changeWeek(direction) {
-    currentDate.setDate(currentDate.getDate() + (direction * 7));
-    renderWeek();
-  }
-
+  function changeWeek(direction) { currentDate.setDate(currentDate.getDate() + (direction * 7)); renderWeek(); }
+  
   init();
 </script>
 </body>
