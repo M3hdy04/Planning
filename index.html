@@ -78,11 +78,50 @@
     .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 10px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
     .agent-rate-panel.open { display: flex; }
     .agent-rate-panel input { width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; outline: none; }
+
+    /* Écran de connexion et listes de profils */
+    #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 16px; }
+    .auth-card { background: white; width: 100%; max-width: 400px; border-radius: 20px; padding: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center; }
+    .auth-card h2 { margin-top: 0; margin-bottom: 4px; font-size: 1.4rem; }
+    .auth-card p { color: #666; font-size: 0.9rem; margin-bottom: 20px; }
+    .profile-list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f8f9fa; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; cursor: pointer; text-align: left; font-weight: 600; transition: background 0.2s; }
+    .profile-list-item:hover { background: #f1f3f5; }
   </style>
 </head>
 <body>
 
-<div class="container">
+<!-- ÉCRAN DE CONNEXION / SÉLECTION DE PROFIL (Affiché par défaut ou lors de la déconnexion) -->
+<div id="auth-screen">
+  <div class="auth-card" id="auth-view-profiles">
+    <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; margin-bottom: 6px;">Basic Fit • Planning</div>
+    <h2>Sélectionnez un profil</h2>
+    <p>Choisissez votre profil pour accéder au planning</p>
+    
+    <div id="profiles-selection-list">
+      <!-- Rempli dynamiquement -->
+    </div>
+    
+    <button class="btn-cancel" style="margin-top: 16px; border:none; color:#111; font-weight:700;" onclick="showLoginPasswordForm('Administrateur')">🔑 Connexion par Identifiant / Mot de passe</button>
+  </div>
+
+  <!-- Formulaire de mot de passe pour un profil spécifique -->
+  <div class="auth-card" id="auth-view-password" style="display: none;">
+    <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; margin-bottom: 6px;">Sécurité</div>
+    <h2 id="auth-target-profile-title">Mot de passe requis</h2>
+    <p id="auth-target-profile-sub">Entrez le mot de passe pour accéder à ce profil</p>
+    
+    <div class="form-group" style="text-align: left;">
+      <label id="auth-user-label">Nom d'utilisateur</label>
+      <input type="text" id="auth-username" class="form-control" placeholder="Nom d'utilisateur" value="Mehdi A." style="display:none;">
+      <input type="password" id="auth-password" class="form-control" placeholder="••••••••" style="margin-top: 4px;">
+    </div>
+    
+    <button class="btn-submit" style="max-width: none; margin-top: 12px;" onclick="submitLogin()">Se connecter</button>
+    <button class="btn-cancel" onclick="backToProfilesList()">← Retour aux profils</button>
+  </div>
+</div>
+
+<div class="container" id="main-app-container" style="display: none;">
   <div class="header">
     <div>
       <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;">BASIC FIT • ACCUEIL</div>
@@ -97,13 +136,16 @@
     <!-- Menu déroulant épuré et fonctionnel -->
     <div class="profile-dropdown" id="profile-dropdown">
       <div class="profile-dropdown-header">
-        <div class="role">Super Admin : Développeur</div>
-        <div class="name">Mehdi A.</div>
+        <div class="role" id="dropdown-role-text">Super Admin : Développeur</div>
+        <div class="name" id="dropdown-name-text">Mehdi A.</div>
       </div>
       <div class="profile-dropdown-item" onclick="openAccountModal()">
         ⚙️ Paramètres du Compte
       </div>
-      <div class="profile-dropdown-item" style="color: #f87171;" onclick="actionProfile('Déconnexion')">
+      <div class="profile-dropdown-item" onclick="triggerSwitchProfile()">
+        🔄 Changer de profil
+      </div>
+      <div class="profile-dropdown-item" style="color: #f87171;" onclick="triggerLogout()">
         🚪 Déconnexion
       </div>
     </div>
@@ -220,6 +262,111 @@
 
   const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
+  // Liste des profils disponibles pour la sélection/changement
+  const availableProfiles = [
+    { name: "Mehdi A.", role: "Super Admin : Développeur" },
+    { name: "Manager Club", role: "Responsable Planning" },
+    { name: "Superviseur", role: "Superviseur Régional" }
+  ];
+
+  let selectedProfileContext = null;
+
+  function initAuthScreen() {
+    const listContainer = document.getElementById('profiles-selection-list');
+    listContainer.innerHTML = '';
+    
+    availableProfiles.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'profile-list-item';
+      item.innerHTML = `
+        <div>
+          <div style="font-size: 0.95rem;">${p.name}</div>
+          <div style="font-size: 0.75rem; color: #666; font-weight: normal;">${p.role}</div>
+        </div>
+        <span style="color: #007aff; font-size: 0.9rem;">Sélectionner →</span>
+      `;
+      item.onclick = () => selectProfile(p);
+      listContainer.appendChild(item);
+    });
+  }
+
+  function selectProfile(profile) {
+    selectedProfileContext = profile;
+    document.getElementById('auth-view-profiles').style.display = 'none';
+    document.getElementById('auth-view-password').style.display = 'block';
+    document.getElementById('auth-target-profile-title').innerText = profile.name;
+    document.getElementById('auth-target-profile-sub').innerText = `Entrez le mot de passe pour ${profile.role}`;
+    document.getElementById('auth-username').style.display = 'none';
+    document.getElementById('auth-user-label').style.display = 'none';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-password').focus();
+  }
+
+  function showLoginPasswordForm(mode) {
+    selectedProfileContext = { name: "Administrateur", role: mode };
+    document.getElementById('auth-view-profiles').style.display = 'none';
+    document.getElementById('auth-view-password').style.display = 'block';
+    document.getElementById('auth-target-profile-title').innerText = "Connexion Administrateur";
+    document.getElementById('auth-target-profile-sub').innerText = "Entrez vos identifiants de compte";
+    document.getElementById('auth-username').style.display = 'block';
+    document.getElementById('auth-user-label').style.display = 'block';
+    document.getElementById('auth-username').value = 'Mehdi A.';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-password').focus();
+  }
+
+  function backToProfilesList() {
+    document.getElementById('auth-view-password').style.display = 'none';
+    document.getElementById('auth-view-profiles').style.display = 'block';
+  }
+
+  function submitLogin() {
+    const pwd = document.getElementById('auth-password').value;
+    if (!pwd) {
+      alert("Veuillez entrer un mot de passe.");
+      return;
+    }
+
+    // Appliquer le profil choisi
+    if (selectedProfileContext) {
+      document.getElementById('dropdown-name-text').innerText = selectedProfileContext.name;
+      document.getElementById('dropdown-role-text').innerText = selectedProfileContext.role;
+      document.getElementById('account-name').value = selectedProfileContext.name;
+      document.getElementById('account-role').value = selectedProfileContext.role;
+    }
+
+    // Masquer l'écran d'authentification et afficher l'application
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-app-container').style.display = 'block';
+    
+    initApp();
+  }
+
+  function triggerSwitchProfile() {
+    const dropdown = document.getElementById('profile-dropdown');
+    dropdown.classList.remove('open');
+    
+    // Réafficher l'écran de sélection des profils
+    document.getElementById('main-app-container').style.display = 'none';
+    document.getElementById('auth-view-password').style.display = 'none';
+    document.getElementById('auth-view-profiles').style.display = 'block';
+    document.getElementById('auth-screen').style.display = 'flex';
+    initAuthScreen();
+  }
+
+  function triggerLogout() {
+    const dropdown = document.getElementById('profile-dropdown');
+    dropdown.classList.remove('open');
+
+    if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+      document.getElementById('main-app-container').style.display = 'none';
+      document.getElementById('auth-view-password').style.display = 'none';
+      document.getElementById('auth-view-profiles').style.display = 'block';
+      document.getElementById('auth-screen').style.display = 'flex';
+      initAuthScreen();
+    }
+  }
+
   // --- GESTION DU MENU PROFIL ---
   function toggleProfileDropdown(event) {
     event.stopPropagation();
@@ -247,24 +394,13 @@
   function saveAccountSettings() {
     const newName = document.getElementById('account-name').value.trim();
     if (newName) {
-      document.querySelector('.profile-dropdown-header .name').innerText = newName;
+      document.getElementById('dropdown-name-text').innerText = newName;
     }
     closeAccountModal();
     alert("Paramètres enregistrés avec succès.");
   }
 
-  function actionProfile(actionName) {
-    const dropdown = document.getElementById('profile-dropdown');
-    dropdown.classList.remove('open');
-    
-    if (actionName === 'Déconnexion') {
-      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
-        alert("Déconnexion réussie.");
-      }
-    }
-  }
-
-  async function init() {
+  async function initApp() {
     await fetchAgents();
     await fetchSlots();
     renderWeek();
@@ -694,7 +830,8 @@
     renderWeek();
   }
 
-  init();
+  // Démarrage initial de l'authentification
+  initAuthScreen();
 </script>
 </body>
 </html>
