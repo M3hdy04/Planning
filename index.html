@@ -1,14 +1,120 @@
-isClubSelected ? 'active' : ''
-  `;
-          subItem.innerHTML = `🏢 ${club}`;
-          subItem.onclick = (e) => {
-            e.stopPropagation();
-            selectGlobalFilter('CLUB', club, `🏢 ${club}`);
-          };
-          container.appendChild(subItem);
-        });
-      });
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planning Remplacements</title>
+  <!-- Ajoute ici tes styles CSS ou liens de framework si nécessaire -->
+</head>
+<body>
+
+  <!-- Écran de Connexion / Auth -->
+  <div id="auth-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;">
+    <h2>Connexion</h2>
+    <div id="auth-profiles-container"></div>
+    <button id="close-auth-btn" style="display:none;" onclick="cancelSwitchProfile()">Fermer</button>
+  </div>
+
+  <!-- Conteneur Principal de l'Application -->
+  <div id="main-app-container" style="display: none;">
+    <header>
+      <h1>Planning Remplacements</h1>
+      <div id="profile-dropdown" class="custom-dropdown">
+        <span id="dropdown-name-text" onclick="toggleProfileDropdown(event)">Mon Compte</span>
+      </div>
+      <button onclick="triggerLogout()">Déconnexion</button>
+    </header>
+
+    <div id="week-label"></div>
+    <div id="days-container"></div>
+    <div id="selected-day-title"></div>
+    <div id="day-covered-count"></div>
+    <div id="slots-list"></div>
+
+    <!-- Formulaire Ajout/Modif Créneau -->
+    <div id="slot-form" style="display:none;">
+      <h3 id="form-title">Nouveau créneau</h3>
+      <input type="hidden" id="edit-id">
+      <input type="time" id="form-start">
+      <input type="time" id="form-end">
+      <input type="text" id="form-club" placeholder="Club / Secteur">
+      <button onclick="saveSlot()">Enregistrer</button>
+      <button onclick="hideForm()">Annuler</button>
+    </div>
+  </div>
+
+  <!-- Modals (Agents, Profils, etc.) -->
+  <div id="agents-modal" style="display:none;">
+    <div id="agents-manage-list"></div>
+    <button onclick="closeAgentsModal()">Fermer</button>
+  </div>
+
+  <div id="profiles-manager-modal" style="display:none;">
+    <div id="profiles-manage-list"></div>
+    <button onclick="closeProfilesManagerModal()">Fermer</button>
+  </div>
+
+  <div id="account-modal" style="display:none;">
+    <input type="text" id="account-name">
+    <button onclick="saveAccountSettings()">Sauvegarder</button>
+    <button onclick="closeAccountModal()">Annuler</button>
+  </div>
+
+  <div id="total-modal" style="display:none;">
+    <button id="btn-semaine" onclick="switchTotalTab('semaine')">Semaine</button>
+    <button id="btn-mois" onclick="switchTotalTab('mois')">Mois</button>
+    <div id="modal-period-label"></div>
+    <div id="modal-total-hours"></div>
+    <div id="modal-agents-list"></div>
+    <button onclick="closeTotalModal()">Fermer</button>
+  </div>
+
+<script>
+  // Variables globales fictives pour l'exemple de structure de base de données (Supabase / JS)
+  // Assure-toi de garder ton objet 'db' initialisé plus haut dans ton code réel.
+  let loggedInProfile = null;
+  let currentGlobalFilterType = null;
+  let currentGlobalFilterValue = null;
+  let currentDate = new Date();
+  let selectedDateStr = new Date().toISOString().split('T')[0];
+  let allRawSlots = [];
+  let slots = [];
+  let agents = [];
+  let agentColors = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
+  let agentRates = {};
+  let openRateAgents = {};
+  let openAgentDetails = {};
+  let modalTab = 'semaine';
+  let modalDate = new Date();
+
+  // --- GESTION DE L'AUTHENTIFICATION ET DU REFRESH ---
+
+  async function checkInitialAuth() {
+    const profileId = localStorage.getItem('basicfit_logged_profile_id');
+    if (!profileId) {
+      // Aucun profil connecté -> Afficher l'écran de login
+      document.getElementById('main-app-container').style.display = 'none';
+      document.getElementById('auth-screen').style.display = 'flex';
+      initAuthScreen(); 
+    } else {
+      // Profil trouvé -> Récupérer les infos et lancer l'app
+      const { data, error } = await db.from('profiles').select('*').eq('id', profileId).single();
+      if (data) {
+        loggedInProfile = data;
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('main-app-container').style.display = 'block';
+        document.getElementById('dropdown-name-text').innerText = loggedInProfile.name;
+        initApp();
+      } else {
+        // Si le profil n'existe plus en base
+        localStorage.removeItem('basicfit_logged_profile_id');
+        location.reload();
+      }
     }
+  }
+
+  function initAuthScreen() {
+    // Logique pour charger les profils sur l'écran de connexion si nécessaire
   }
 
   function selectGlobalFilter(type, value, labelText = null) {
@@ -16,12 +122,15 @@ isClubSelected ? 'active' : ''
     currentGlobalFilterValue = value;
 
     if (labelText) {
-      document.getElementById('global-filter-current-label').innerText = labelText;
+      const label = document.getElementById('global-filter-current-label');
+      if (label) label.innerText = labelText;
     } else {
-      document.getElementById('global-filter-current-label').innerText = '🌐 Tous les secteurs';
+      const label = document.getElementById('global-filter-current-label');
+      if (label) label.innerText = '🌐 Tous les secteurs';
     }
 
-    document.getElementById('custom-dropdown-list').classList.remove('open');
+    const dropdownList = document.getElementById('custom-dropdown-list');
+    if (dropdownList) dropdownList.classList.remove('open');
     renderSlots();
     renderDays();
   }
@@ -96,14 +205,17 @@ isClubSelected ? 'active' : ''
     document.getElementById('profiles-manager-modal').style.display = 'none';
   }
   function resetProfileForm() {
-    document.getElementById('manage-profile-id').value = '';
-    document.getElementById('manage-username').value = '';
-    document.getElementById('manage-name').value = '';
-    document.getElementById('manage-role').value = '';
-    document.getElementById('manage-password').value = '';
-    document.getElementById('manage-sector').value = '';
-    document.getElementById('profile-form-title').innerText = '➕ Ajouter un nouveau profil';
-    document.getElementById('btn-cancel-profile-edit').style.display = 'none';
+    const manageId = document.getElementById('manage-profile-id');
+    if (manageId) {
+      manageId.value = '';
+      document.getElementById('manage-username').value = '';
+      document.getElementById('manage-name').value = '';
+      document.getElementById('manage-role').value = '';
+      document.getElementById('manage-password').value = '';
+      document.getElementById('manage-sector').value = '';
+      document.getElementById('profile-form-title').innerText = '➕ Ajouter un nouveau profil';
+      document.getElementById('btn-cancel-profile-edit').style.display = 'none';
+    }
   }
 
   async function loadProfilesManageList() {
@@ -199,7 +311,8 @@ isClubSelected ? 'active' : ''
   async function fetchAgents() {
     const { data } = await db.from('agents').select('*').order('name');
     agents = data || [];
-    document.getElementById('agent-count-badge').innerText = agents.length;
+    const badge = document.getElementById('agent-count-badge');
+    if (badge) badge.innerText = agents.length;
     renderAgentsManageList();
   }
 
@@ -211,16 +324,13 @@ isClubSelected ? 'active' : ''
 
   function filterAndRenderSlots() {
     slots = allRawSlots.filter(s => {
-      // Filtrage selon le rôle ou le secteur du profil connecté s'il n'est pas global
       if (loggedInProfile && loggedInProfile.sector && !loggedInProfile.role.toLowerCase().includes('développeur') && !loggedInProfile.role.toLowerCase().includes('responsable global')) {
         if (!s.club || s.club.toLowerCase() !== loggedInProfile.sector.toLowerCase()) {
           return false;
         }
       }
 
-      // Filtrage par menu déroulant global (pour admin/responsable global)
       if (currentGlobalFilterType === 'SECTEUR') {
-        // Si le filtre est un secteur, on vérifie si le club appartient à ce secteur
         let secteurNom = "Secteur Reims";
         if (s.club && s.club.toLowerCase().includes('dijon')) secteurNom = "Secteur Dijon";
         if (secteurNom.toLowerCase() !== currentGlobalFilterValue.toLowerCase()) return false;
@@ -369,7 +479,6 @@ isClubSelected ? 'active' : ''
       document.getElementById('edit-id').value = '';
       document.getElementById('form-start').value = '09:00';
       document.getElementById('form-end').value = '13:00';
-      // Si le profil connecté a un secteur fixe, on pré-remplit le club/secteur
       if (loggedInProfile && loggedInProfile.sector && !loggedInProfile.role.toLowerCase().includes('développeur') && !loggedInProfile.role.toLowerCase().includes('responsable global')) {
         document.getElementById('form-club').value = loggedInProfile.sector;
       } else {
@@ -472,6 +581,7 @@ isClubSelected ? 'active' : ''
 
   function renderAgentsManageList() {
     const container = document.getElementById('agents-manage-list');
+    if (!container) return;
     container.innerHTML = '';
 
     if (agents.length === 0) {
@@ -623,7 +733,6 @@ isClubSelected ? 'active' : ''
       let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
       if (mins < 0) mins += 24 * 60;
 
-      // Ajout de 30 minutes de pointage par créneau couvert
       mins += 30;
 
       if (agentStats[s.agent]) {
@@ -639,7 +748,7 @@ isClubSelected ? 'active' : ''
     let agentsHtml = '';
     agents.forEach((ag, idx) => {
       let stats = agentStats[ag.name] || { minutes: 0, count: 0 };
-      if (stats.minutes === 0) return; // Masquer les agents sans heures sur la période
+      if (stats.minutes === 0) return;
 
       let hoursFormatted = `${Math.floor(stats.minutes / 60)}h${String(stats.minutes % 60).padStart(2, '0')}`;
       let rate = agentRates[ag.name] || 15;
@@ -666,6 +775,7 @@ isClubSelected ? 'active' : ''
     agentsListContainer.innerHTML = agentsHtml || `<p style="text-align:center; color:#666; font-style:italic;">Aucune heure effectuée sur cette période.</p>`;
   }
 
+  // Lancement de la vérification d'authentification au chargement de la page
   window.onload = checkInitialAuth;
 </script>
 
