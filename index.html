@@ -19,7 +19,18 @@
     .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; position: relative; flex-wrap: wrap; gap: 12px; }
     .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
     .header-left { display: flex; flex-direction: column; gap: 4px; }
-    .global-filter-select { background: #222; color: #a3e635; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none; }
+    
+    .custom-dropdown { position: relative; display: inline-block; }
+    .custom-dropdown-btn { background: #222; color: #a3e635; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none; display: flex; align-items: center; gap: 6px; }
+    .custom-dropdown-content { display: none; position: absolute; top: 110%; left: 0; background: #222; border: 1px solid #333; border-radius: 12px; width: 260px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 1000; overflow: hidden; color: white; text-align: left; max-height: 280px; overflow-y: auto; }
+    .custom-dropdown-content.open { display: block; }
+    .custom-dropdown-item { padding: 10px 14px; font-size: 0.85rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .custom-dropdown-item:hover { background: #333; }
+    .custom-dropdown-item.active { color: #a3e635; font-weight: 700; }
+    .custom-dropdown-subitem { padding: 8px 14px 8px 28px; font-size: 0.8rem; color: #bbb; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; align-items: center; gap: 6px; }
+    .custom-dropdown-subitem:hover { background: #2a2a2a; color: white; }
+    .custom-dropdown-subitem.active { color: #a3e635; font-weight: 700; }
+
     .badges-group { display: flex; gap: 6px; align-items: center; }
     .badge { background: #222; border: 1px solid #333; padding: 6px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: white; }
     
@@ -74,8 +85,6 @@
     .agent-right { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
     
     .btn-agent-plus { background: #f3f4f6; border: 1px solid var(--border); border-radius: 6px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: #333; }
-    .btn-agent-plus:hover { background: #e5e7eb; }
-
     .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 10px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
     .agent-rate-panel.open { display: flex; }
     .agent-rate-panel input { width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; outline: none; }
@@ -96,9 +105,6 @@
     .password-wrapper { position: relative; width: 100%; margin-top: 4px; }
     .password-wrapper input { width: 100%; padding-right: 40px; }
     .toggle-password-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; color: #666; }
-    
-    .club-tag { background: #e5e7eb; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px; margin-right: 4px; margin-top: 2px; }
-    .club-tag button { background: none; border: none; cursor: pointer; font-weight: bold; color: #555; }
   </style>
 </head>
 <body>
@@ -141,10 +147,14 @@
       <h1>Planning remplacements</h1>
     </div>
     
-    <div id="global-filter-wrapper" style="display: none;">
-      <select id="global-sector-filter" class="global-filter-select" onchange="onGlobalSectorFilterChange()">
-        <option value="ALL">🌐 Tous les secteurs (Vue globale)</option>
-      </select>
+    <!-- Menu déroulant par Secteur et Clubs -->
+    <div id="global-filter-wrapper" style="display: none;" class="custom-dropdown">
+      <div class="custom-dropdown-btn" onclick="toggleCustomDropdown(event)">
+        <span id="global-filter-current-label">🌐 Tous les secteurs</span> ▾
+      </div>
+      <div class="custom-dropdown-content" id="custom-dropdown-list">
+        <div class="custom-dropdown-item active" onclick="selectGlobalSector('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>
+      </div>
     </div>
 
     <div class="badges-group">
@@ -194,7 +204,7 @@
     </div>
     <div class="form-group">
       <label>Secteur</label>
-      <input type="text" id="form-club" class="form-control" placeholder="ex. Reims, Dijon...">
+      <input type="text" id="form-club" class="form-control" placeholder="ex. Cernay, Croix rouge...">
     </div>
     <button class="btn-submit" onclick="saveSlot()" style="max-width: none;">Enregistrer</button>
     <button class="btn-cancel" onclick="hideForm()">Annuler</button>
@@ -221,14 +231,14 @@
   <div class="modal-card" style="max-width: 580px;">
     <button class="modal-close" onclick="closeProfilesManagerModal()">✕</button>
     <h3 style="margin-top:0; margin-bottom: 4px;">Gestion des profils</h3>
-    <p style="color: #666; font-size: 0.85rem; margin-bottom: 16px;">Créez un profil et indiquez son secteur principal (ex: Reims, Dijon).</p>
+    <p style="color: #666; font-size: 0.85rem; margin-bottom: 16px;">Créez un profil et indiquez son secteur principal.</p>
     
     <div style="margin-bottom: 20px; background: #f8f9fa; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
       <h4 id="profile-form-title" style="margin-top:0; font-size: 0.95rem;">➕ Ajouter un nouveau profil</h4>
       <input type="hidden" id="manage-profile-id">
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-        <input type="text" id="manage-username" class="form-control" placeholder="Identifiant (ex: reims)">
-        <input type="text" id="manage-name" class="form-control" placeholder="Nom complet (ex: Reims)">
+        <input type="text" id="manage-username" class="form-control" placeholder="Identifiant">
+        <input type="text" id="manage-name" class="form-control" placeholder="Nom complet">
       </div>
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
         <select id="manage-role" class="form-control">
@@ -242,7 +252,7 @@
       
       <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px;">
         <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; display:block; margin-bottom:4px;">Secteur assigné à ce profil :</label>
-        <input type="text" id="manage-sector" class="form-control" placeholder="Nom du secteur (ex: Reims)">
+        <input type="text" id="manage-sector" class="form-control" placeholder="Nom du secteur">
       </div>
 
       <div style="display: flex; gap: 8px; margin-top: 12px;">
@@ -330,6 +340,7 @@
   let availableProfiles = [];
   let selectedProfileContext = null;
   let loggedInProfile = null;
+  let currentGlobalSectorFilter = 'ALL';
 
   function togglePasswordVisibility(inputId, btn) {
     const input = document.getElementById(inputId);
@@ -467,7 +478,7 @@
     const isGlobalRole = (profile.role && (profile.role.toLowerCase().includes('développeur') || profile.role.toLowerCase().includes('responsable global')));
     const filterWrapper = document.getElementById('global-filter-wrapper');
     if (isGlobalRole) {
-      filterWrapper.style.display = 'block';
+      filterWrapper.style.display = 'inline-block';
       buildGlobalSectorDropdown();
     } else {
       filterWrapper.style.display = 'none';
@@ -480,23 +491,53 @@
     initApp();
   }
 
+  function toggleCustomDropdown(event) {
+    event.stopPropagation();
+    const dropdownContent = document.getElementById('custom-dropdown-list');
+    dropdownContent.classList.toggle('open');
+  }
+
   async function buildGlobalSectorDropdown() {
-    const selectEl = document.getElementById('global-sector-filter');
-    selectEl.innerHTML = `<option value="ALL">🌐 Tous les secteurs (Vue globale)</option>`;
+    const container = document.getElementById('custom-dropdown-list');
+    container.innerHTML = `<div class="custom-dropdown-item ${currentGlobalSectorFilter === 'ALL' ? 'active' : ''}" onclick="selectGlobalSector('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>`;
 
     const { data } = await db.from('slots').select('club');
     if (data) {
+      // Regroupement simulé des secteurs et de leurs clubs (ici club fait office de secteur/club)
       const uniqueSectors = [...new Set(data.map(s => s.club ? s.club.trim() : '').filter(Boolean))].sort();
+      
       uniqueSectors.forEach(sector => {
-        const opt = document.createElement('option');
-        opt.value = sector;
-        opt.innerText = `📍 Secteur : ${sector}`;
-        selectEl.appendChild(opt);
+        const isSelected = currentGlobalSectorFilter.toLowerCase() === sector.toLowerCase();
+        
+        // Élément principal du Secteur
+        const item = document.createElement('div');
+        item.className = `custom-dropdown-item ${isSelected ? 'active' : ''}`;
+        item.innerHTML = `📍 Secteur : ${sector}`;
+        item.onclick = (e) => {
+          e.stopPropagation();
+          selectGlobalSector(sector, `📍 Secteur : ${sector}`);
+        };
+        container.appendChild(item);
+
+        // Sous-éléments listant les clubs/points de ce secteur spécifique
+        const subItem = document.createElement('div');
+        subItem.className = `custom-dropdown-subitem ${isSelected ? 'active' : ''}`;
+        subItem.innerHTML = `↳ Club : ${sector}`;
+        subItem.onclick = (e) => {
+          e.stopPropagation();
+          selectGlobalSector(sector, `📍 ${sector}`);
+        };
+        container.appendChild(subItem);
       });
     }
   }
 
-  function onGlobalSectorFilterChange() {
+  function selectGlobalSector(value, label) {
+    currentGlobalSectorFilter = value;
+    document.getElementById('global-filter-current-label').innerText = label;
+    document.getElementById('custom-dropdown-list').classList.remove('open');
+    
+    buildGlobalSectorDropdown();
     applySlotsFiltering();
     renderWeek();
     renderSlots();
@@ -550,6 +591,10 @@
     const dropdown = document.getElementById('profile-dropdown');
     if (dropdown && dropdown.classList.contains('open')) {
       dropdown.classList.remove('open');
+    }
+    const customDropdown = document.getElementById('custom-dropdown-list');
+    if (customDropdown && customDropdown.classList.contains('open')) {
+      customDropdown.classList.remove('open');
     }
   });
 
@@ -708,7 +753,6 @@
     }
   }
 
-  // Filtrage direct par secteur unique (ex: "Reims")
   function applySlotsFiltering() {
     if (!loggedInProfile) {
       slots = allRawSlots;
@@ -718,11 +762,10 @@
     const isGlobalRole = loggedInProfile.role && (loggedInProfile.role.toLowerCase().includes('développeur') || loggedInProfile.role.toLowerCase().includes('responsable global'));
 
     if (isGlobalRole) {
-      const globalFilterVal = document.getElementById('global-sector-filter') ? document.getElementById('global-sector-filter').value : 'ALL';
-      if (globalFilterVal === 'ALL') {
+      if (currentGlobalSectorFilter === 'ALL') {
         slots = allRawSlots;
       } else {
-        slots = allRawSlots.filter(s => s.club && s.club.trim().toLowerCase() === globalFilterVal.toLowerCase());
+        slots = allRawSlots.filter(s => s.club && s.club.trim().toLowerCase() === currentGlobalSectorFilter.toLowerCase());
       }
     } else {
       if (loggedInProfile.sector && loggedInProfile.sector.trim() !== '') {
@@ -857,7 +900,7 @@
     const id = document.getElementById('edit-id').value;
     const start = document.getElementById('form-start').value;
     const end = document.getElementById('form-end').value;
-    const club = document.getElementById('form-club').value.trim(); // Stocke le secteur directement
+    const club = document.getElementById('form-club').value.trim();
 
     if (!club) {
       alert("Veuillez indiquer un secteur.");
