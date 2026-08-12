@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connexion — Gestion des plannings</title>
+  <!-- SDK Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -212,7 +213,6 @@
     <!-- VUE 1 : Liste des profils -->
     <div id="auth-view-profiles" class="auth-view active">
       <div id="profiles-list" class="profiles-grid">
-        <!-- Rempli dynamiquement -->
         <div style="text-align: center; color: var(--text-muted); padding: 20px;">Chargement des profils...</div>
       </div>
     </div>
@@ -236,7 +236,7 @@
   </div>
 
 <script>
-  // Configuration Supabase (à adapter selon vos clés)
+  // Configuration Supabase (remplacez par vos identifiants si ce n'est pas déjà fait dans votre fichier global)
   const SUPABASE_URL = 'VOTRE_SUPABASE_URL';
   const SUPABASE_ANON_KEY = 'VOTRE_SUPABASE_ANON_KEY';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -291,24 +291,20 @@
 
     if (!selectedProfile) return;
 
-    // Vérification du mot de passe stocké en base
     if (passwordInput === selectedProfile.password) {
       localStorage.setItem('basicfit_logged_profile_id', selectedProfile.id);
-      // Redirection vers l'application principale
-      window.location.href = 'app.html'; // ou autre logique de redirection
+      window.location.href = 'index.html'; // Redirigez vers votre page principale (ex: index.html ou app.html)
     } else {
       errorDiv.style.display = 'block';
     }
   }
 
-  // Permettre la validation par la touche Entrée
   document.getElementById('password-input').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
       handleLogin();
     }
   });
 
-  // Lancement au chargement de la page
   window.onload = initAuthScreen;
 </script>
 
