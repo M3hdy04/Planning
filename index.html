@@ -137,7 +137,7 @@
     </div>
 
     <div class="total-banner">
-      <h2 id="modal-total-hours">0h00</h2>
+      <h2 id="modal-total-hours">0h00 / 0h00</h2>
       <p>heures couvertes au total (+30 min de pointage incluses)</p>
     </div>
 
@@ -454,7 +454,8 @@
     const filteredSlots = getFilteredSlots();
     let agentHours = {};
     agents.forEach(a => agentHours[a.id] = { id: a.id, name: a.name, minutes: 0 });
-    let totalMins = 0;
+    let totalGlobalMins = 0;
+    let totalAgentsMins = 0;
 
     filteredSlots.forEach(s => {
       if (s.start && s.end) {
@@ -462,16 +463,19 @@
         const [eh, em] = s.end.split(':').map(Number);
         const diff = (eh * 60 + em) - (sh * 60 + sm) + 30;
         if (diff > 0) {
-          totalMins += diff;
-          if (agentHours[s.agent_id]) {
+          totalGlobalMins += diff;
+          if (s.agent_id !== null && agentHours[s.agent_id]) {
             agentHours[s.agent_id].minutes += diff;
+            totalAgentsMins += diff;
           }
         }
       }
     });
 
-    const totalH = Math.floor(totalMins / 60);
-    const totalM = totalMins % 60;
+    const totalAgentsH = Math.floor(totalAgentsMins / 60);
+    const totalAgentsM = totalAgentsMins % 60;
+    const totalGlobalH = Math.floor(totalGlobalMins / 60);
+    const totalGlobalM = totalGlobalMins % 60;
     const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
 
     let activeRateUsed = null;
@@ -509,12 +513,15 @@
     });
 
     const totalHoursEl = document.getElementById('modal-total-hours');
+    const agentsTextStr = `${totalAgentsH}h${totalAgentsM < 10 ? '0' : ''}${totalAgentsM}`;
+    const globalTextStr = `${totalGlobalH}h${totalGlobalM < 10 ? '0' : ''}${totalGlobalM}`;
+
     if (activeRateUsed !== null) {
-      const totalHoursDecimal = totalMins / 60;
-      const globalCalculatedRevenue = totalHoursDecimal * activeRateUsed;
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${globalCalculatedRevenue.toFixed(2)} €)`;
+      const totalAgentsDecimal = totalAgentsMins / 60;
+      const globalCalculatedRevenue = totalAgentsDecimal * activeRateUsed;
+      totalHoursEl.innerText = `${agentsTextStr} / ${globalTextStr} (${globalCalculatedRevenue.toFixed(2)} €)`;
     } else {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
+      totalHoursEl.innerText = `${agentsTextStr} / ${globalTextStr}`;
     }
   }
 
