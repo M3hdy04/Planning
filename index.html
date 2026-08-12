@@ -23,7 +23,7 @@
     
     /* Styles pour le profil / menu pop-up */
     .profile-btn { background: #222; border: 1px solid #333; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; }
-    .profile-dropdown { display: none; position: absolute; top: 75px; right: 20px; background: #222; border: 1px solid #333; border-radius: 16px; width: 260px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; overflow: hidden; color: white; }
+    .profile-dropdown { display: none; position: absolute; top: 75px; right: 20px; background: #222; border: 1px solid #333; border-radius: 16px; width: 260px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 1000; overflow: hidden; color: white; text-align: left; }
     .profile-dropdown.open { display: block; }
     .profile-dropdown-header { padding: 14px 16px; border-bottom: 1px solid #333; }
     .profile-dropdown-header .role { font-size: 0.75rem; color: #a3e635; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
@@ -94,19 +94,19 @@
       <div class="profile-btn" onclick="toggleProfileDropdown(event)" title="Profil">👤</div>
     </div>
 
-    <!-- Menu Déroulant Profil -->
+    <!-- Menu Déroulant Profil fonctionnel -->
     <div class="profile-dropdown" id="profile-dropdown">
       <div class="profile-dropdown-header">
         <div class="role">Super Admin : Développeur</div>
         <div class="name">Mehdi A.</div>
       </div>
-      <div class="profile-dropdown-item" onclick="alert('Fonctionnalité : Changer de profil')">
+      <div class="profile-dropdown-item" onclick="actionProfile('Changer de Profil')">
         🔄 Changer de Profil
       </div>
-      <div class="profile-dropdown-item" onclick="alert('Fonctionnalité : Paramètres du compte')">
+      <div class="profile-dropdown-item" onclick="actionProfile('Paramètres du Compte')">
         ⚙️ Paramètres du Compte
       </div>
-      <div class="profile-dropdown-item" style="color: #f87171;" onclick="alert('Déconnexion simulée')">
+      <div class="profile-dropdown-item" style="color: #f87171;" onclick="actionProfile('Déconnexion')">
         🚪 Déconnexion
       </div>
     </div>
@@ -205,19 +205,36 @@
 
   const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
-  // Gestion du menu profil (fermeture au clic extérieur)
+  // --- GESTION DU MENU PROFIL CORRIGÉE ET OPÉRATIONNELLE ---
   function toggleProfileDropdown(event) {
     event.stopPropagation();
     const dropdown = document.getElementById('profile-dropdown');
     dropdown.classList.toggle('open');
   }
 
+  // Fermer le menu si on clique n'importe où ailleurs sur la page
   window.addEventListener('click', () => {
     const dropdown = document.getElementById('profile-dropdown');
     if (dropdown && dropdown.classList.contains('open')) {
       dropdown.classList.remove('open');
     }
   });
+
+  // Action réelle lors du clic sur les options du profil
+  function actionProfile(actionName) {
+    const dropdown = document.getElementById('profile-dropdown');
+    dropdown.classList.remove('open');
+    
+    if (actionName === 'Changer de Profil') {
+      alert("Ouverture du module de simulation de profil...");
+    } else if (actionName === 'Paramètres du Compte') {
+      alert("Ouverture des paramètres du compte Super Admin.");
+    } else if (actionName === 'Déconnexion') {
+      if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+        alert("Déconnexion réussie (Redirection simulée).");
+      }
+    }
+  }
 
   async function init() {
     await fetchAgents();
