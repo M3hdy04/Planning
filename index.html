@@ -55,27 +55,18 @@
     .total-banner h2 { color: #a3e635; margin: 0 0 4px 0; font-size: 2.2rem; }
     .total-banner p { margin: 0; font-size: 0.85rem; opacity: 0.8; }
     
-    /* Ligne agent */
     .agent-card-item { background: white; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
     .agent-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-weight: 600; }
     .agent-info { display: flex; align-items: center; gap: 10px; }
     .dot { width: 10px; height: 10px; border-radius: 50%; }
     .agent-right { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
     
-    /* Bouton + / - individuel sur chaque ligne d'agent */
     .btn-agent-plus { background: #f3f4f6; border: 1px solid var(--border); border-radius: 6px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: #333; }
     .btn-agent-plus:hover { background: #e5e7eb; }
 
-    /* Panneau de configuration du taux horaire individuel */
     .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 10px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
     .agent-rate-panel.open { display: flex; }
     .agent-rate-panel input { width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; outline: none; }
-    
-    /* Style champ number */
-    .agent-rate-panel input[type=number]::-webkit-inner-spin-button, 
-    .agent-rate-panel input[type=number]::-webkit-outer-spin-button { 
-      opacity: 1; 
-    }
   </style>
 </head>
 <body>
@@ -94,14 +85,14 @@
 
   <div class="nav">
     <button class="btn-icon" onclick="changeWeek(-1)">‹</button>
-    <strong id="week-label">10 – 16 août 2026</strong>
+    <strong id="week-label"></strong>
     <button class="btn-icon" onclick="changeWeek(1)">›</button>
   </div>
 
   <div class="days" id="days-container"></div>
 
   <div class="section-header">
-    <span id="selected-day-title">Mardi 11 Août</span>
+    <span id="selected-day-title"></span>
     <span id="day-covered-count" style="font-size: 0.9rem; color: #22c55e;">0/0 couverts</span>
   </div>
 
@@ -141,7 +132,7 @@
 
     <div class="nav" style="margin-bottom: 12px;">
       <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
-      <strong id="modal-period-label">Août 2026</strong>
+      <strong id="modal-period-label"></strong>
       <button class="btn-icon" onclick="changeModalDate(1)">›</button>
     </div>
 
@@ -202,6 +193,9 @@
     slots = data || [];
     renderWeek();
     renderSlots();
+    if (document.getElementById('total-modal').style.display === 'flex') {
+      updateModalContent();
+    }
   }
 
   function renderWeek() {
@@ -424,20 +418,24 @@
 
   function toggleAgentRateBox(agentId) {
     openRateAgents[agentId] = !openRateAgents[agentId];
-    updateModalContent();
+    
+    // Au lieu de tout réinitialiser (ce qui détruirait l'input et couperait le focus), 
+    // on met juste à jour l'affichage de la ligne ciblée dynamiquement si possible, 
+    // ou on redessine proprement sans perdre la saisie en cours.
+    updateModalContentKeepingFocus(agentId);
   }
 
-  function updateAgentRate(agentId, val) {
+  function updateAgentRate(agentId, val, preserveFocus = true) {
     const rate = parseFloat(val);
     if (!isNaN(rate) && rate >= 0) {
       agentRates[agentId] = rate;
     } else {
       delete agentRates[agentId];
     }
-    updateModalContent();
+    updateModalContentKeepingFocus(preserveFocus ? agentId : null);
   }
 
-  function updateModalContent() {
+  function updateModalContentKeepingFocus(focusedAgentId = null) {
     const labelEl = document.getElementById('modal-period-label');
     const totalHoursEl = document.getElementById('modal-total-hours');
     const agentsListEl = document.getElementById('modal-agents-list');
@@ -487,25 +485,6 @@
     const totalH = Math.floor(totalMins / 60);
     const totalM = totalMins % 60;
 
-    // Calcul du total cumulé de tous les agents pour lesquels un taux horaire est défini
-    let totalCalculatedRevenue = 0;
-    let hasAnyRate = false;
-
-    agents.forEach(a => {
-      const ag = agentHours[a.id];
-      if (ag && agentRates[a.id] !== undefined) {
-        hasAnyRate = true;
-        const hoursDecimal = ag.minutes / 60;
-        totalCalculatedRevenue += hoursDecimal * agentRates[a.id];
-      }
-    });
-
-    if (hasAnyRate) {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${totalCalculatedRevenue.toFixed(2)} €)`;
-    } else {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
-    }
-
     agentsListEl.innerHTML = '';
     const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
 
@@ -540,11 +519,47 @@
         </div>
         <div class="agent-rate-panel ${isOpen ? 'open' : ''}">
           <span>Taux horaire personnalisé :</span>
-          <input type="number" placeholder="€/h" min="0" step="0.5" value="${currentVal}" oninput="updateAgentRate('${ag.id}', this.value)">
+          <input type="number" id="rate-input-${ag.id}" placeholder="€/h" min="0" step="0.5" value="${currentVal}" oninput="updateAgentRate('${ag.id}', this.value, true)">
         </div>
       `;
       agentsListEl.appendChild(cardItem);
     });
+
+    // CORRECTION MAJEURE : C'est ICI que le total global prend désormais en compte le taux du PREMIER agent affiché (ou celui de l'agent actif), 
+    // exactement comme vous l'avez demandé (ex: 298h30 multiplié par le taux du premier agent au lieu de 832 € fixe).
+    let targetRate = 0;
+    if (sortedAgents.length > 0) {
+      const firstAgentId = sortedAgents[0].id;
+      if (agentRates[firstAgentId] !== undefined) {
+        targetRate = agentRates[firstAgentId];
+      }
+    }
+
+    const totalHoursDecimal = totalMins / 60;
+    const globalCalculatedRevenue = totalHoursDecimal * targetRate;
+
+    if (targetRate > 0) {
+      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${globalCalculatedRevenue.toFixed(2)} €)`;
+    } else {
+      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
+    }
+
+    // Restaurer le focus et la position du curseur sur l'input actif pour éviter qu'il ne se coupe lors de la frappe
+    if (focusedAgentId) {
+      setTimeout(() => {
+        const activeInput = document.getElementById(`rate-input-${focusedAgentId}`);
+        if (activeInput) {
+          activeInput.focus();
+          // Place le curseur à la fin du texte pour une saisie fluide de "1" puis "3"
+          const valLength = activeInput.value.length;
+          activeInput.setSelectionRange(valLength, valLength);
+        }
+      }, 0);
+    }
+  }
+
+  function updateModalContent() {
+    updateModalContentKeepingFocus(null);
   }
 
   function getMonday(d) {
