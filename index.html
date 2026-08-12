@@ -1311,7 +1311,6 @@
           const isClubSelected = currentGlobalFilterType === 'CLUB' && currentGlobalFilterValue.toLowerCase() === club.toLowerCase();
           const subItem = document.createElement('div');
           subItem.className = `custom-dropdown-subitem ${isClubSelected ? 'active' : ''}`;
-          // ──➤ Collez la suite ici :
           subItem.innerHTML = `🏢 ${club}`;
           subItem.onclick = (e) => {
             e.stopPropagation();
