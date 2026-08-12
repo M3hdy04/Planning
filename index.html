@@ -457,7 +457,7 @@
     let totalMins = 0;
 
     filteredSlots.forEach(s => {
-      if (s.start && s.end && s.agent_id && agentHours[s.agent_id]) {
+      if (s.start && s.end && agentHours[s.agent_id]) {
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
         const diff = (eh * 60 + em) - (sh * 60 + sm) + 30;
@@ -473,6 +473,7 @@
     const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
 
     let totalCalculatedRevenueSum = 0;
+    let hasAnyRate = false;
 
     sortedAgents.forEach(ag => {
       const rightContainer = document.getElementById(`agent-right-${ag.id}`);
@@ -487,6 +488,7 @@
         const activeRate = agentRates[ag.id];
         
         if (activeRate !== undefined && activeRate >= 0) {
+          hasAnyRate = true;
           const agentRevenue = (ag.minutes / 60) * activeRate;
           totalCalculatedRevenueSum += agentRevenue;
           const agentRevenueStr = agentRevenue.toFixed(2);
@@ -502,7 +504,6 @@
     });
 
     const totalHoursEl = document.getElementById('modal-total-hours');
-    const hasAnyRate = Object.keys(agentRates).length > 0;
 
     if (hasAnyRate) {
       totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${totalCalculatedRevenueSum.toFixed(2)} €)`;
@@ -529,7 +530,7 @@
     agents.forEach(a => agentHours[a.id] = { id: a.id, name: a.name, minutes: 0 });
 
     filteredSlots.forEach(s => {
-      if (s.start && s.end && s.agent_id && agentHours[s.agent_id]) {
+      if (s.start && s.end && agentHours[s.agent_id]) {
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
         const diff = (eh * 60 + em) - (sh * 60 + sm) + 30;
