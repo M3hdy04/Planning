@@ -237,7 +237,6 @@
         <input type="text" id="manage-name" class="form-control" placeholder="Nom complet">
       </div>
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-        <!-- Champ Rôle transformé en menu déroulant -->
         <select id="manage-role" class="form-control">
           <option value="">— Sélectionner un rôle —</option>
           <option value="Chef secteur">Chef secteur</option>
@@ -330,6 +329,21 @@
     }
   }
 
+  async function checkInitialAuth() {
+    const { data } = await db.from('profiles').select('*').order('name');
+    if (data) availableProfiles = data;
+
+    const savedProfileId = localStorage.getItem('basicfit_logged_profile_id');
+    if (savedProfileId && availableProfiles.length > 0) {
+      const found = availableProfiles.find(p => String(p.id) === String(savedProfileId));
+      if (found) {
+        setLoggedInUser(found);
+        return;
+      }
+    }
+    initAuthScreen();
+  }
+
   async function initAuthScreen() {
     const { data, error } = await db.from('profiles').select('*').order('name');
     if (error || !data || data.length === 0) {
@@ -413,14 +427,19 @@
       return;
     }
 
-    loggedInProfile = targetProfile;
+    localStorage.setItem('basicfit_logged_profile_id', targetProfile.id);
+    setLoggedInUser(targetProfile);
+  }
 
-    document.getElementById('dropdown-name-text').innerText = targetProfile.name;
-    document.getElementById('dropdown-role-text').innerText = targetProfile.role;
-    document.getElementById('account-name').value = targetProfile.name;
-    document.getElementById('account-role').value = targetProfile.role;
+  function setLoggedInUser(profile) {
+    loggedInProfile = profile;
 
-    const isDeveloper = targetProfile.role && targetProfile.role.toLowerCase().includes('développeur');
+    document.getElementById('dropdown-name-text').innerText = profile.name;
+    document.getElementById('dropdown-role-text').innerText = profile.role;
+    document.getElementById('account-name').value = profile.name;
+    document.getElementById('account-role').value = profile.role;
+
+    const isDeveloper = profile.role && profile.role.toLowerCase().includes('développeur');
     const manageProfilesItem = document.getElementById('menu-item-manage-profiles');
     if (isDeveloper) {
       manageProfilesItem.style.display = 'flex';
@@ -461,6 +480,7 @@
     dropdown.classList.remove('open');
 
     if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+      localStorage.removeItem('basicfit_logged_profile_id');
       loggedInProfile = null;
       document.getElementById('main-app-container').style.display = 'none';
       document.getElementById('auth-view-password').style.display = 'none';
@@ -1037,7 +1057,7 @@
     renderWeek();
   }
 
-  initAuthScreen();
+  checkInitialAuth();
 </script>
 </body>
 </html>
