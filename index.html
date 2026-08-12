@@ -22,11 +22,11 @@
     
     .custom-dropdown { position: relative; display: inline-block; }
     .custom-dropdown-btn { background: #222; color: #a3e635; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none; display: flex; align-items: center; gap: 6px; }
-    .custom-dropdown-content { display: none; position: absolute; top: 110%; left: 0; background: #222; border: 1px solid #333; border-radius: 12px; width: 260px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 1000; overflow: hidden; color: white; text-align: left; max-height: 280px; overflow-y: auto; }
+    .custom-dropdown-content { display: none; position: absolute; top: 110%; left: 0; background: #222; border: 1px solid #333; border-radius: 12px; width: 280px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); z-index: 1000; overflow: hidden; color: white; text-align: left; max-height: 320px; overflow-y: auto; }
     .custom-dropdown-content.open { display: block; }
-    .custom-dropdown-item { padding: 10px 14px; font-size: 0.85rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .custom-dropdown-item { padding: 10px 14px; font-size: 0.85rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
     .custom-dropdown-item:hover { background: #333; }
-    .custom-dropdown-item.active { color: #a3e635; font-weight: 700; }
+    .custom-dropdown-item.active { color: #a3e635; }
     .custom-dropdown-subitem { padding: 8px 14px 8px 28px; font-size: 0.8rem; color: #bbb; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; align-items: center; gap: 6px; }
     .custom-dropdown-subitem:hover { background: #2a2a2a; color: white; }
     .custom-dropdown-subitem.active { color: #a3e635; font-weight: 700; }
@@ -147,13 +147,13 @@
       <h1>Planning remplacements</h1>
     </div>
     
-    <!-- Menu déroulant par Secteur et Clubs -->
+    <!-- Menu déroulant structuré par Secteur et ses Clubs -->
     <div id="global-filter-wrapper" style="display: none;" class="custom-dropdown">
       <div class="custom-dropdown-btn" onclick="toggleCustomDropdown(event)">
         <span id="global-filter-current-label">🌐 Tous les secteurs</span> ▾
       </div>
       <div class="custom-dropdown-content" id="custom-dropdown-list">
-        <div class="custom-dropdown-item active" onclick="selectGlobalSector('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>
+        <div class="custom-dropdown-item active" onclick="selectGlobalFilter('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>
       </div>
     </div>
 
@@ -203,7 +203,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Secteur</label>
+      <label>Club / Secteur</label>
       <input type="text" id="form-club" class="form-control" placeholder="ex. Cernay, Croix rouge...">
     </div>
     <button class="btn-submit" onclick="saveSlot()" style="max-width: none;">Enregistrer</button>
@@ -252,7 +252,7 @@
       
       <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px;">
         <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; display:block; margin-bottom:4px;">Secteur assigné à ce profil :</label>
-        <input type="text" id="manage-sector" class="form-control" placeholder="Nom du secteur">
+        <input type="text" id="manage-sector" class="form-control" placeholder="Nom du secteur (ex: Reims)">
       </div>
 
       <div style="display: flex; gap: 8px; margin-top: 12px;">
@@ -340,7 +340,10 @@
   let availableProfiles = [];
   let selectedProfileContext = null;
   let loggedInProfile = null;
-  let currentGlobalSectorFilter = 'ALL';
+  
+  // Type de filtre actif : 'ALL', 'SECTEUR:Reims' ou 'CLUB:Cernay'
+  let currentGlobalFilterType = 'ALL';
+  let currentGlobalFilterValue = 'ALL';
 
   function togglePasswordVisibility(inputId, btn) {
     const input = document.getElementById(inputId);
@@ -499,42 +502,66 @@
 
   async function buildGlobalSectorDropdown() {
     const container = document.getElementById('custom-dropdown-list');
-    container.innerHTML = `<div class="custom-dropdown-item ${currentGlobalSectorFilter === 'ALL' ? 'active' : ''}" onclick="selectGlobalSector('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>`;
+    container.innerHTML = `<div class="custom-dropdown-item ${currentGlobalFilterValue === 'ALL' ? 'active' : ''}" onclick="selectGlobalFilter('ALL', '🌐 Tous les secteurs')">🌐 Tous les secteurs (Vue globale)</div>`;
 
     const { data } = await db.from('slots').select('club');
     if (data) {
-      // Regroupement simulé des secteurs et de leurs clubs (ici club fait office de secteur/club)
-      const uniqueSectors = [...new Set(data.map(s => s.club ? s.club.trim() : '').filter(Boolean))].sort();
+      // Regroupement dynamique (on considère chaque valeur unique de club/secteur)
+      const uniqueClubs = [...new Set(data.map(s => s.club ? s.club.trim() : '').filter(Boolean))].sort();
       
-      uniqueSectors.forEach(sector => {
-        const isSelected = currentGlobalSectorFilter.toLowerCase() === sector.toLowerCase();
+      // Regroupement par Secteur (Exemple basé sur les données existantes)
+      // Si vous avez une logique de secteur, vous pouvez grouper, ici on traite chaque club comme faisant partie de son propre secteur, ou groupé par ville/secteur type Reims, Dijon, etc.
+      // Pour l'exemple, on crée un secteur principal "Secteur Reims" ou similaire regroupant les clubs trouvés.
+      
+      const secteursMap = {};
+      uniqueClubs.forEach(clubName => {
+        // Logique de regroupement (ex: si le club contient reims ou autre, ou on crée un secteur par défaut)
+        let secteurNom = "Secteur Reims"; // Secteur principal par défaut pour l'exemple
+        if (clubName.toLowerCase().includes('dijon')) secteurNom = "Secteur Dijon";
         
-        // Élément principal du Secteur
-        const item = document.createElement('div');
-        item.className = `custom-dropdown-item ${isSelected ? 'active' : ''}`;
-        item.innerHTML = `📍 Secteur : ${sector}`;
-        item.onclick = (e) => {
-          e.stopPropagation();
-          selectGlobalSector(sector, `📍 Secteur : ${sector}`);
-        };
-        container.appendChild(item);
+        if (!secteursMap[secteurNom]) secteursMap[secteurNom] = [];
+        secteursMap[secteurNom].push(clubName);
+      });
 
-        // Sous-éléments listant les clubs/points de ce secteur spécifique
-        const subItem = document.createElement('div');
-        subItem.className = `custom-dropdown-subitem ${isSelected ? 'active' : ''}`;
-        subItem.innerHTML = `↳ Club : ${sector}`;
-        subItem.onclick = (e) => {
+      Object.keys(secteursMap).sort().forEach(secteur => {
+        const isSecteurSelected = currentGlobalFilterType === 'SECTEUR' && currentGlobalFilterValue.toLowerCase() === secteur.toLowerCase();
+
+        // Ligne principale du Secteur (ex: Secteur Reims)
+        const secteurItem = document.createElement('div');
+        secteurItem.className = `custom-dropdown-item ${isSecteurSelected ? 'active' : ''}`;
+        secteurItem.innerHTML = `📍 ${secteur} <span style="font-size:0.75rem; color:#aaa;">▾</span>`;
+        secteurItem.onclick = (e) => {
           e.stopPropagation();
-          selectGlobalSector(sector, `📍 ${sector}`);
+          selectGlobalFilter('SECTEUR', secteur, `📍 ${secteur}`);
         };
-        container.appendChild(subItem);
+        container.appendChild(secteurItem);
+
+        // Sous-éléments : liste des clubs de ce secteur spécifique
+        secteursMap[secteur].forEach(club => {
+          const isClubSelected = currentGlobalFilterType === 'CLUB' && currentGlobalFilterValue.toLowerCase() === club.toLowerCase();
+          const subItem = document.createElement('div');
+          subItem.className = `custom-dropdown-subitem ${isClubSelected ? 'active' : ''}`;
+          subItem.innerHTML = `↳ Club : ${club}`;
+          subItem.onclick = (e) => {
+            e.stopPropagation();
+            selectGlobalFilter('CLUB', club, `📍 Club : ${club}`);
+          };
+          container.appendChild(subItem);
+        });
       });
     }
   }
 
-  function selectGlobalSector(value, label) {
-    currentGlobalSectorFilter = value;
-    document.getElementById('global-filter-current-label').innerText = label;
+  function selectGlobalFilter(type, value, label) {
+    currentGlobalFilterType = type;
+    currentGlobalFilterValue = value;
+    
+    if (type === 'ALL') {
+      document.getElementById('global-filter-current-label').innerText = '🌐 Tous les secteurs';
+    } else {
+      document.getElementById('global-filter-current-label').innerText = label;
+    }
+
     document.getElementById('custom-dropdown-list').classList.remove('open');
     
     buildGlobalSectorDropdown();
@@ -762,10 +789,19 @@
     const isGlobalRole = loggedInProfile.role && (loggedInProfile.role.toLowerCase().includes('développeur') || loggedInProfile.role.toLowerCase().includes('responsable global'));
 
     if (isGlobalRole) {
-      if (currentGlobalSectorFilter === 'ALL') {
+      if (currentGlobalFilterType === 'ALL') {
         slots = allRawSlots;
-      } else {
-        slots = allRawSlots.filter(s => s.club && s.club.trim().toLowerCase() === currentGlobalSectorFilter.toLowerCase());
+      } else if (currentGlobalFilterType === 'CLUB') {
+        slots = allRawSlots.filter(s => s.club && s.club.trim().toLowerCase() === currentGlobalFilterValue.toLowerCase());
+      } else if (currentGlobalFilterType === 'SECTEUR') {
+        // Si on sélectionne le secteur global (ex: Secteur Reims), on affiche tous les clubs qui y sont rattachés
+        slots = allRawSlots.filter(s => {
+          if (!s.club) return false;
+          let clubName = s.club.trim().toLowerCase();
+          let secteurNom = currentGlobalFilterValue.toLowerCase().replace('secteur ', '');
+          // Si le nom du club correspond ou fait partie du secteur
+          return clubName.includes(secteurNom) || secteurNom.includes('reims'); // Ajustable selon vos dénominations
+        });
       }
     } else {
       if (loggedInProfile.sector && loggedInProfile.sector.trim() !== '') {
@@ -827,7 +863,7 @@
     document.getElementById('day-covered-count').innerText = `${covered}/${daySlots.length} couverts`;
 
     if (daySlots.length === 0) {
-      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px; grid-column: 1 / -1;">Aucun créneau pour ce secteur.</div>`;
+      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px; grid-column: 1 / -1;">Aucun créneau pour ce filtre.</div>`;
       return;
     }
 
@@ -852,7 +888,7 @@
         <div class="slot-top">
           <div>
             <div class="slot-time">${s.start} – ${s.end}</div>
-            <div class="slot-club">📍 Secteur : ${s.club || 'Non précisé'}</div>
+            <div class="slot-club">📍 Club/Secteur : ${s.club || 'Non précisé'}</div>
           </div>
           <div class="slot-actions">
             <button class="btn-action" onclick="editSlot('${s.id}')">✏️</button>
@@ -903,7 +939,7 @@
     const club = document.getElementById('form-club').value.trim();
 
     if (!club) {
-      alert("Veuillez indiquer un secteur.");
+      alert("Veuillez indiquer un club ou secteur.");
       return;
     }
 
