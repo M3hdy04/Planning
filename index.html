@@ -60,6 +60,66 @@
       font-size: 0.875rem;
     }
 
+    /* Vues du système d'authentification */
+    .auth-view {
+      display: none;
+    }
+
+    .auth-view.active {
+      display: block;
+    }
+
+    /* Grille des profils */
+    .profiles-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding-right: 4px;
+    }
+
+    .profile-card {
+      background-color: var(--bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .profile-card:hover {
+      border-color: var(--accent-color);
+      transform: translateY(-1px);
+    }
+
+    .profile-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .profile-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .profile-role {
+      font-size: 0.75rem;
+      color: var(--accent-color);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .profile-arrow {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    /* Formulaire de mot de passe */
     .form-group {
       margin-bottom: 20px;
     }
@@ -104,6 +164,34 @@
       background-color: var(--accent-hover);
     }
 
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--border-color);
+      color: var(--text-color);
+    }
+
+    .selected-user-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background-color: var(--bg-color);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .selected-user-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
     .error-msg {
       color: var(--danger-color);
       font-size: 0.8rem;
@@ -118,101 +206,110 @@
   <div class="login-container">
     <div class="login-header">
       <h1>Espace Connexion</h1>
-      <p>Entrez vos identifiants pour continuer</p>
+      <p>Sélectionnez votre profil pour continuer</p>
     </div>
 
-    <div class="form-group">
-      <label for="username-input">Identifiant ou Nom</label>
-      <input type="text" id="username-input" class="form-control" placeholder="Ex: Mehdi A." autocomplete="username">
+    <!-- VUE 1 : Liste des profils -->
+    <div id="auth-view-profiles" class="auth-view active">
+      <div id="profiles-list" class="profiles-grid">
+        <!-- Rempli dynamiquement -->
+        <div style="text-align: center; color: var(--text-muted); padding: 20px;">Chargement des profils...</div>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label for="password-input">Mot de passe</label>
-      <input type="password" id="password-input" class="form-control" placeholder="Entrez votre mot de passe" autocomplete="current-password">
-      <div id="login-error" class="error-msg">Identifiant ou mot de passe incorrect</div>
-    </div>
+    <!-- VUE 2 : Saisie du mot de passe -->
+    <div id="auth-view-password" class="auth-view">
+      <div class="selected-user-badge">
+        <div>👤</div>
+        <div class="selected-user-name" id="selected-profile-name">Nom du profil</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="password-input">Mot de passe</label>
+        <input type="password" id="password-input" class="form-control" placeholder="Entrez votre mot de passe">
+        <div id="login-error" class="error-msg">Mot de passe incorrect</div>
+      </div>
 
-    <button class="btn" onclick="handleLogin()">Se connecter</button>
+      <button class="btn" onclick="handleLogin()">Se connecter</button>
+      <button class="btn btn-secondary" onclick="backToProfiles()">← Changer de profil</button>
+    </div>
   </div>
 
 <script>
-  const SUPABASE_URL = 'https://inyonzcwfjhzuzlhumzj.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlueW9uemN3ZmpoenV6bGh1bXpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjU5NzUsImV4cCI6MjEwMjA0MTk3NX0.I3OBttFLZitL8UMmqiP4iylg2au1atGifGjosK5EbXM';
-  
-  let db = null;
-  try {
-    db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch (e) {
-    console.error("Erreur d'initialisation Supabase", e);
-  }
+  // Configuration Supabase (à adapter selon vos clés)
+  const SUPABASE_URL = 'VOTRE_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'VOTRE_SUPABASE_ANON_KEY';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  async function handleLogin() {
-    const usernameInput = document.getElementById('username-input').value.trim();
-    const passwordInput = document.getElementById('password-input').value;
-    const errorDiv = document.getElementById('login-error');
+  let selectedProfile = null;
 
-    errorDiv.style.display = 'none';
+  async function initAuthScreen() {
+    const listContainer = document.getElementById('profiles-list');
+    const { data, error } = await db.from('profiles').select('*').order('name');
 
-    if (!usernameInput) {
-      errorDiv.innerText = "Veuillez entrer un identifiant";
-      errorDiv.style.display = 'block';
+    if (error || !data || data.length === 0) {
+      listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">Aucun profil trouvé.</div>`;
       return;
     }
 
-    try {
-      if (!db) throw new Error("Base de données non initialisée");
+    listContainer.innerHTML = '';
+    data.forEach(profile => {
+      const card = document.createElement('div');
+      card.className = 'profile-card';
+      card.innerHTML = `
+        <div class="profile-info">
+          <span class="profile-name">${profile.name}</span>
+          <span class="profile-role">${profile.role || 'Utilisateur'}</span>
+        </div>
+        <div class="profile-arrow">›</div>
+      `;
+      card.onclick = () => selectProfile(profile);
+      listContainer.appendChild(card);
+    });
+  }
 
-      // On récupère tous les profils pour faire une recherche souple (insensible à la casse)
-      const { data, error } = await db
-        .from('profiles')
-        .select('*');
+  function selectProfile(profile) {
+    selectedProfile = profile;
+    document.getElementById('selected-profile-name').innerText = profile.name;
+    document.getElementById('password-input').value = '';
+    document.getElementById('login-error').style.display = 'none';
 
-      if (error) {
-        console.error("Erreur Supabase:", error);
-        throw error;
-      }
+    document.getElementById('auth-view-profiles').classList.remove('active');
+    document.getElementById('auth-view-password').classList.add('active');
+    document.getElementById('password-input').focus();
+  }
 
-      // Recherche du profil correspondant (par nom, username ou identifiant approchant)
-      const user = data.find(p => 
-        (p.name && p.name.toLowerCase() === usernameInput.toLowerCase()) ||
-        (p.username && p.username.toLowerCase() === usernameInput.toLowerCase())
-      );
+  function backToProfiles() {
+    selectedProfile = null;
+    document.getElementById('auth-view-password').classList.remove('active');
+    document.getElementById('auth-view-profiles').classList.add('active');
+  }
 
-      if (!user) {
-        errorDiv.innerText = "Utilisateur introuvable dans la base";
-        errorDiv.style.display = 'block';
-        return;
-      }
+  async function handleLogin() {
+    const passwordInput = document.getElementById('password-input').value;
+    const errorDiv = document.getElementById('login-error');
 
-      // Vérification du mot de passe (s'il est défini en base)
-      if (!user.password || passwordInput === user.password) {
-        localStorage.setItem('basicfit_logged_profile_id', user.id);
-        window.location.href = 'index.html';
-      } else {
-        errorDiv.innerText = "Mot de passe incorrect";
-        errorDiv.style.display = 'block';
-      }
+    if (!selectedProfile) return;
 
-    } catch (err) {
-      console.warn("Mode secours activé suite à un blocage réseau/base", err);
-      
-      // Sécurité ultime de secours pour vous laisser passer immédiatement quoi qu'il arrive
-      localStorage.setItem('basicfit_logged_profile_id', 'emergency-bypass');
-      window.location.href = 'index.html';
+    // Vérification du mot de passe stocké en base
+    if (passwordInput === selectedProfile.password) {
+      localStorage.setItem('basicfit_logged_profile_id', selectedProfile.id);
+      // Redirection vers l'application principale
+      window.location.href = 'app.html'; // ou autre logique de redirection
+    } else {
+      errorDiv.style.display = 'block';
     }
   }
 
+  // Permettre la validation par la touche Entrée
   document.getElementById('password-input').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
       handleLogin();
     }
   });
 
-  document.getElementById('username-input').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-      document.getElementById('password-input').focus();
-    }
-  });
+  // Lancement au chargement de la page
+  window.onload = initAuthScreen;
 </script>
 
 </body>
