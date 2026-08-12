@@ -138,7 +138,7 @@
 <div class="container" id="main-app-container" style="display: none;">
   <div class="header">
     <div>
-      <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;">BASIC FIT • ACCUEIL</div>
+      <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;" id="header-secteur-label">BASIC FIT • ACCUEIL</div>
       <h1>Planning remplacements</h1>
     </div>
     <div class="badges-group">
@@ -197,8 +197,8 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Club</label>
-      <input type="text" id="form-club" class="form-control" placeholder="ex. Thillois, Cernay...">
+      <label>Club / Secteur</label>
+      <input type="text" id="form-club" class="form-control" placeholder="ex. Dijon, Thillois, Cernay...">
     </div>
     <button class="btn-submit" onclick="saveSlot()" style="max-width: none;">Enregistrer</button>
     <button class="btn-cancel" onclick="hideForm()">Annuler</button>
@@ -215,7 +215,7 @@
       <input type="text" id="account-name" class="form-control" value="Mehdi A.">
     </div>
     <div class="form-group">
-      <label>Rôle</label>
+      <label>Rôle / Secteur</label>
       <input type="text" id="account-role" class="form-control" value="Super Admin : Développeur" disabled style="background:#f3f4f6; color:#555;">
     </div>
     <button class="btn-submit" style="max-width:none; margin-top:16px;" onclick="saveAccountSettings()">Enregistrer</button>
@@ -227,22 +227,25 @@
   <div class="modal-card" style="max-width: 550px;">
     <button class="modal-close" onclick="closeProfilesManagerModal()">✕</button>
     <h3 style="margin-top:0; margin-bottom: 4px;">Gestion des profils</h3>
-    <p style="color: #666; font-size: 0.85rem; margin-bottom: 16px;">Créez, modifiez ou réinitialisez les mots de passe des profils.</p>
+    <p style="color: #666; font-size: 0.85rem; margin-bottom: 16px;">Créez, modifiez ou réinitialisez les mots de passe et secteurs des profils.</p>
     
     <div style="margin-bottom: 20px; background: #f8f9fa; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
       <h4 id="profile-form-title" style="margin-top:0; font-size: 0.95rem;">➕ Ajouter un nouveau profil</h4>
       <input type="hidden" id="manage-profile-id">
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-        <input type="text" id="manage-username" class="form-control" placeholder="Identifiant (ex: mehdi)">
+        <input type="text" id="manage-username" class="form-control" placeholder="Identifiant (ex: dijon)">
         <input type="text" id="manage-name" class="form-control" placeholder="Nom complet">
       </div>
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
         <select id="manage-role" class="form-control">
-          <option value="">— Sélectionner un rôle —</option>
-          <option value="Chef secteur">Chef secteur</option>
-          <option value="Responsable globale">Responsable globale</option>
-          <option value="Super Admin : Développeur">Super Admin : Développeur</option>
+          <option value="">— Sélectionner un rôle / type —</option>
+          <option value="Chef secteur">Chef de secteur (Secteur unique)</option>
+          <option value="Responsable globale">Responsable globale (Tous les secteurs)</option>
+          <option value="Super Admin : Développeur">Super Admin : Développeur (Tous)</option>
         </select>
+        <input type="text" id="manage-sector" class="form-control" placeholder="Secteur/Club (ex: Dijon)">
+      </div>
+      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
         <input type="text" id="manage-password" class="form-control" placeholder="Mot de passe">
       </div>
       <div style="display: flex; gap: 8px;">
@@ -348,7 +351,7 @@
     const { data, error } = await db.from('profiles').select('*').order('name');
     if (error || !data || data.length === 0) {
       availableProfiles = [
-        { id: 1, username: 'mehdi', name: 'Mehdi A.', role: 'Super Admin : Développeur', password: '1234' }
+        { id: 1, username: 'mehdi', name: 'Mehdi A.', role: 'Super Admin : Développeur', sector: '', password: '1234' }
       ];
     } else {
       availableProfiles = data;
@@ -363,7 +366,7 @@
       item.innerHTML = `
         <div>
           <div style="font-size: 0.95rem;">${p.name}</div>
-          <div style="font-size: 0.75rem; color: #666; font-weight: normal;">${p.role}</div>
+          <div style="font-size: 0.75rem; color: #666; font-weight: normal;">${p.role} ${p.sector ? '• ' + p.sector : ''}</div>
         </div>
         <span style="color: #007aff; font-size: 0.9rem;">Sélectionner →</span>
       `;
@@ -435,9 +438,12 @@
     loggedInProfile = profile;
 
     document.getElementById('dropdown-name-text').innerText = profile.name;
-    document.getElementById('dropdown-role-text').innerText = profile.role;
+    document.getElementById('dropdown-role-text').innerText = `${profile.role} ${profile.sector ? '• ' + profile.sector : ''}`;
     document.getElementById('account-name').value = profile.name;
-    document.getElementById('account-role').value = profile.role;
+    document.getElementById('account-role').value = `${profile.role} ${profile.sector ? '(' + profile.sector + ')' : ''}`;
+
+    const headerLabel = profile.sector ? `BASIC FIT • SECTEUR ${profile.sector.toUpperCase()}` : 'BASIC FIT • ACCUEIL GLOBAL';
+    document.getElementById('header-secteur-label').innerText = headerLabel;
 
     const isDeveloper = profile.role && profile.role.toLowerCase().includes('développeur');
     const manageProfilesItem = document.getElementById('menu-item-manage-profiles');
@@ -547,6 +553,7 @@
     document.getElementById('manage-username').value = '';
     document.getElementById('manage-name').value = '';
     document.getElementById('manage-role').value = '';
+    document.getElementById('manage-sector').value = '';
     document.getElementById('manage-password').value = '';
     document.getElementById('profile-form-title').innerText = "➕ Ajouter un nouveau profil";
     document.getElementById('btn-cancel-profile-edit').style.display = 'none';
@@ -574,7 +581,7 @@
       row.innerHTML = `
         <div>
           <div style="font-size: 0.9rem;">${p.name} <span style="font-size:0.75rem; color:#666;">(@${p.username})</span></div>
-          <div style="font-size: 0.75rem; color: #111; font-weight:700;">${p.role} | MDP: ${p.password}</div>
+          <div style="font-size: 0.75rem; color: #111; font-weight:700;">${p.role} ${p.sector ? '• Secteur: ' + p.sector : ''} | MDP: ${p.password}</div>
         </div>
         <div style="display:flex; gap:4px;">
           <button class="btn-action" onclick="editProfileAdmin('${p.id}')">✏️</button>
@@ -590,17 +597,18 @@
     const username = document.getElementById('manage-username').value.trim();
     const name = document.getElementById('manage-name').value.trim();
     const role = document.getElementById('manage-role').value;
+    const sector = document.getElementById('manage-sector').value.trim();
     const password = document.getElementById('manage-password').value.trim();
 
     if (!username || !name || !role || !password) {
-      alert("Veuillez remplir tous les champs et sélectionner un rôle.");
+      alert("Veuillez remplir tous les champs obligatoires et sélectionner un rôle.");
       return;
     }
 
     if (id) {
-      await db.from('profiles').update({ username, name, role, password }).eq('id', id);
+      await db.from('profiles').update({ username, name, role, sector, password }).eq('id', id);
     } else {
-      await db.from('profiles').insert([{ username, name, role, password }]);
+      await db.from('profiles').insert([{ username, name, role, sector, password }]);
     }
 
     resetProfileForm();
@@ -614,6 +622,7 @@
       document.getElementById('manage-username').value = p.username;
       document.getElementById('manage-name').value = p.name;
       document.getElementById('manage-role').value = p.role;
+      document.getElementById('manage-sector').value = p.sector || '';
       document.getElementById('manage-password').value = p.password;
       document.getElementById('profile-form-title').innerText = "✏️ Modifier le profil";
       document.getElementById('btn-cancel-profile-edit').style.display = 'block';
@@ -641,7 +650,18 @@
 
   async function fetchSlots() {
     const { data } = await db.from('slots').select('*');
-    slots = data || [];
+    let allSlots = data || [];
+
+    // FILTRAGE SELON LE PROFIL CONNECTÉ
+    if (loggedInProfile && loggedInProfile.sector && loggedInProfile.sector.trim() !== '') {
+      const userSector = loggedInProfile.sector.trim().toLowerCase();
+      // Ne garde que les créneaux dont le club/secteur correspond (ex: "Dijon")
+      slots = allSlots.filter(s => s.club && s.club.trim().toLowerCase().includes(userSector));
+    } else {
+      // Si aucun secteur renseigné (Admin global, Responsable globale, Développeur), on garde tout
+      slots = allSlots;
+    }
+
     renderWeek();
     renderSlots();
     if (document.getElementById('total-modal').style.display === 'flex') {
@@ -752,7 +772,9 @@
       document.getElementById('edit-id').value = '';
       document.getElementById('form-start').value = '09:00';
       document.getElementById('form-end').value = '13:00';
-      document.getElementById('form-club').value = '';
+      // Pré-remplir le club si le chef de secteur a un secteur unique
+      const defaultClub = (loggedInProfile && loggedInProfile.sector) ? loggedInProfile.sector : '';
+      document.getElementById('form-club').value = defaultClub;
     }
   }
 
