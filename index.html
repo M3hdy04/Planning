@@ -46,7 +46,7 @@
     .btn-submit { width: 100%; background: #111; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; max-width: 300px; }
     .btn-cancel { width: 100%; background: transparent; color: #666; border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
-    .modal-card { background: white; width: 100%; max-width: 420px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; max-height: 90vh; overflow-y: auto; }
+    .modal-card { background: white; width: 100%; max-width: 440px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; max-height: 90vh; overflow-y: auto; }
     .modal-close { position: absolute; top: 16px; right: 16px; background: #f3f4f6; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; color: #007aff; }
     .toggle-container { display: flex; background: #f3f4f6; border-radius: 12px; padding: 4px; margin-bottom: 16px; }
     .toggle-btn { flex: 1; padding: 8px; text-align: center; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #666; }
@@ -54,13 +54,19 @@
     .total-banner { background: #111; color: white; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; }
     .total-banner h2 { color: #a3e635; margin: 0 0 4px 0; font-size: 2.2rem; }
     .total-banner p { margin: 0; font-size: 0.85rem; opacity: 0.8; }
-    .agent-row { display: flex; justify-content: space-between; align-items: center; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; font-weight: 600; }
+    
+    /* Ligne d'agent dans la modale avec accordéon pour le taux horaire individuel */
+    .agent-card-item { background: white; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; transition: all 0.2s ease; }
+    .agent-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; font-weight: 600; user-select: none; }
+    .agent-row:hover { background: #fafafa; }
     .agent-info { display: flex; align-items: center; gap: 10px; }
     .dot { width: 10px; height: 10px; border-radius: 50%; }
-    .rate-input-container { background: #f3f4f6; padding: 10px 14px; border-radius: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600; }
-    .rate-input-container input { width: 80px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; }
-    .agent-right { display: flex; align-items: center; gap: 8px; }
-    .agent-rate-input { width: 65px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.9rem; background: #f3f4f6; }
+    .agent-right { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+    
+    /* Panneau de configuration du taux horaire individuel qui s'ouvre au clic */
+    .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 12px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
+    .agent-rate-panel.open { display: flex; }
+    .agent-rate-panel input { width: 90px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; }
   </style>
 </head>
 <body>
@@ -123,20 +129,20 @@
       <button class="toggle-btn active" id="btn-mois" onclick="switchTotalTab('mois')">Mois</button>
     </div>
 
-    <!-- Navigation de la période et Bouton pour afficher/masquer le taux horaire global -->
+    <!-- Navigation de la période et Bouton "+" -->
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
       <div class="nav" style="margin-bottom: 0; flex: 1;">
         <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
         <strong id="modal-period-label" style="text-align: center; flex: 1;">Août 2026</strong>
         <button class="btn-icon" onclick="changeModalDate(1)">›</button>
       </div>
-      <button class="btn-action" id="toggle-rate-btn" onclick="toggleRateInput()" title="Afficher/Masquer taux global" style="margin-left: 8px; width: 36px; height: 36px; border-radius: 50%; background: #111; color: #a3e635; font-weight: bold;">+</button>
+      <button class="btn-action" id="toggle-rate-btn" onclick="toggleGlobalRateBox()" title="Taux horaire global" style="margin-left: 8px; width: 36px; height: 36px; border-radius: 50%; background: #111; color: #a3e635; font-weight: bold;">+</button>
     </div>
 
-    <!-- Option Taux horaire global (masquée par défaut) -->
-    <div class="rate-input-container" id="rate-container" style="display: none; margin-top: 12px;">
+    <!-- Option Taux horaire global (masquée par défaut, s'ouvre avec le bouton +) -->
+    <div style="background: #f3f4f6; padding: 10px 14px; border-radius: 12px; margin-bottom: 12px; display: none; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600;" id="global-rate-container">
       <label for="hourly-rate">Taux horaire global (€/h) :</label>
-      <input type="number" id="hourly-rate" placeholder="0" min="0" step="0.5" oninput="updateModalContent()">
+      <input type="number" id="hourly-rate" placeholder="0" min="0" step="0.5" style="width: 80px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-weight: 600; background: white;" oninput="updateModalContent()">
     </div>
 
     <div class="total-banner" style="margin-top: 12px;">
@@ -144,6 +150,7 @@
       <p>heures couvertes au total (+30 min de pointage incluses)</p>
     </div>
 
+    <div style="font-size: 0.8rem; color: #666; margin-bottom: 8px; text-align: center;">💡 Appuyez sur un agent pour configurer son taux horaire individuel</div>
     <div id="modal-agents-list"></div>
   </div>
 </div>
@@ -174,7 +181,8 @@
   
   let modalTab = 'mois';
   let modalDate = new Date();
-  let agentRates = {}; // Stocke les taux personnalisés par agent { agentId: rate }
+  let agentRates = {}; // Stocke les taux individuels { agentId: rate }
+  let openRateAgentId = null; // ID de l'agent dont le panneau de taux est ouvert
 
   const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
@@ -415,19 +423,28 @@
     updateModalContent();
   }
 
-  function toggleRateInput() {
-    const container = document.getElementById('rate-container');
+  function toggleGlobalRateBox() {
+    const container = document.getElementById('global-rate-container');
     const btn = document.getElementById('toggle-rate-btn');
-    
     if (container.style.display === 'none') {
       container.style.display = 'flex';
       btn.innerText = '−';
-      btn.title = 'Masquer taux global';
     } else {
       container.style.display = 'none';
       btn.innerText = '+';
-      btn.title = 'Afficher taux global';
       document.getElementById('hourly-rate').value = '';
+    }
+    updateModalContent();
+  }
+
+  function toggleAgentRatePanel(agentId, event) {
+    // Éviter de déclencher si on clique directement dans l'input
+    if (event && event.target.tagName === 'INPUT') return;
+    
+    if (openRateAgentId === agentId) {
+      openRateAgentId = null; // Fermer si on re-clique dessus
+    } else {
+      openRateAgentId = agentId; // Ouvrir celui-ci
     }
     updateModalContent();
   }
@@ -527,24 +544,28 @@
         revenueText = ` <span style="color: #22c55e; font-size: 0.85rem;">(${agentRevenue} €)</span>`;
       }
 
-      // Champ de saisie individuel affiché directement à côté de chaque agent (optionnel)
-      const currentVal = agentRates[ag.id] !== undefined ? agentRates[ag.id] : (globalHourlyRate > 0 ? globalHourlyRate : '');
-      const inputHtml = `<input type="number" class="agent-rate-input" placeholder="€/h" min="0" step="0.5" value="${currentVal}" oninput="updateAgentRate('${ag.id}', this.value)">`;
+      const isOpen = openRateAgentId === ag.id;
+      const currentVal = agentRates[ag.id] !== undefined ? agentRates[ag.id] : '';
 
-      const row = document.createElement('div');
-      row.className = 'agent-row';
-      row.innerHTML = `
-        <div class="agent-info">
-          <div class="dot" style="background: ${color};"></div>
-          <span>${ag.name}</span>
+      const cardItem = document.createElement('div');
+      cardItem.className = 'agent-card-item';
+      cardItem.innerHTML = `
+        <div class="agent-row" onclick="toggleAgentRatePanel('${ag.id}', event)">
+          <div class="agent-info">
+            <div class="dot" style="background: ${color};"></div>
+            <span>${ag.name}</span>
+          </div>
+          <div class="agent-right">
+            <span>${h}h${m < 10 ? '0' : ''}${m}</span>
+            ${revenueText}
+          </div>
         </div>
-        <div class="agent-right">
-          ${inputHtml}
-          <span>${h}h${m < 10 ? '0' : ''}${m}</span>
-          ${revenueText}
+        <div class="agent-rate-panel ${isOpen ? 'open' : ''}">
+          <span>Taux horaire personnalisé :</span>
+          <input type="number" placeholder="€/h" min="0" step="0.5" value="${currentVal}" oninput="updateAgentRate('${ag.id}', this.value)">
         </div>
       `;
-      agentsListEl.appendChild(row);
+      agentsListEl.appendChild(cardItem);
     });
   }
 
