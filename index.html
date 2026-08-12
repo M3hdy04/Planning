@@ -418,7 +418,7 @@
 
   function toggleAgentRateBox(agentId) {
     openRateAgents[agentId] = !openRateAgents[agentId];
-    updateModalContentKeepingFocus(null);
+    updateModalContent();
   }
 
   function updateAgentRate(agentId, val) {
@@ -428,72 +428,14 @@
     } else {
       delete agentRates[agentId];
     }
-    // Met à jour les calculs globaux et les revenus individuels de façon fluide SANS recréer l'input actif
-    updateCalculationsOnly(agentId);
+    updateCalculationsOnlyValues();
   }
 
-  function updateCalculationsOnly(activeAgentId) {
-    // Recalcule et met à jour uniquement les textes des revenus et du total global sans réinitialiser le DOM de la liste
-    let totalMins = getFilteredSlotsMinutes();
-    let { sortedAgents, totalH, totalM } = getSortedAgentsData(totalMins);
-
-    // Mettre à jour le texte du total global
-    const totalHoursEl = document.getElementById('modal-total-hours');
-    let targetRate = 0;
-    if (sortedAgents.length > 0) {
-      const firstAgentId = sortedAgents[0].id;
-      if (agentRates[firstAgentId] !== undefined) {
-        targetRate = agentRates[firstAgentId];
-      }
-    }
-    const totalHoursDecimal = totalMins / 60;
-    const globalCalculatedRevenue = totalHoursDecimal * targetRate;
-
-    if (targetRate > 0) {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${globalCalculatedRevenue.toFixed(2)} €)`;
-    } else {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
-    }
-
-    // Mettre à jour les textes des revenus individuels de chaque agent sans toucher aux inputs
-    sortedAgents.forEach(ag => {
-      const rightContainer = document.getElementById(`agent-right-${ag.id}`);
-      if (rightContainer) {
-        let revenueText = '';
-        const activeRate = agentRates[ag.id];
-        if (activeRate !== undefined && activeRate >= 0) {
-          const agentRevenue = ((ag.minutes / 60) * activeRate).toFixed(2);
-          revenueText = ` <span style="color: #22c55e; font-size: 0.85rem;" id="agent-rev-${ag.id}">(${agentRevenue} €)</span>`;
-        }
-        
-        const h = Math.floor(ag.minutes / 60);
-        const m = ag.minutes % 60;
-        const isOpen = !!openRateAgents[ag.id];
-        
-        // On met à jour l'affichage des heures et du montant sans toucher à l'input en cours d'édition
-        const timeSpan = rightContainer.querySelector('.agent-time-text');
-        if (timeSpan) timeSpan.innerText = `${h}h${m < 10 ? '0' : ''}${m}`;
-        
-        const existingRev = document.getElementById(`agent-rev-${ag.id}`);
-        if (existingRev) {
-          if (activeRate !== undefined && activeRate >= 0) {
-            existingRev.innerHTML = `(${((ag.minutes / 60) * activeRate).toFixed(2)} €)`;
-          } else {
-            existingRev.remove();
-          }
-        } else if (activeRate !== undefined && activeRate >= 0) {
-          rightContainer.insertAdjacentHTML('beforeend', revenueText);
-        }
-      }
-    });
-  }
-
-  function getFilteredSlotsMinutes() {
-    let filteredSlots = [];
+  function getFilteredSlots() {
     if (modalTab === 'mois') {
       const year = modalDate.getFullYear();
       const month = modalDate.getMonth();
-      filteredSlots = slots.filter(s => {
+      return slots.filter(s => {
         const d = new Date(s.date_str);
         return d.getFullYear() === year && d.getMonth() === month;
       });
@@ -501,43 +443,88 @@
       const startOfWeek = getMonday(modalDate);
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(endOfWeek.getDate() + 6);
-      filteredSlots = slots.filter(s => {
+      return slots.filter(s => {
         const d = new Date(s.date_str);
         return d >= startOfWeek && d <= endOfWeek;
       });
     }
+  }
 
-    let agentMinutes = 0;
+  function updateCalculationsOnlyValues() {
+    const filteredSlots = getFilteredSlots();
+    let agentHours = {};
+    agents.forEach(a => agentHours[a.id] = { id: a.id, name: a.name, minutes: 0 });
+    let totalMins = 0;
+
     filteredSlots.forEach(s => {
-      if (s.start && s.end && s.agent_id) {
+      if (s.start && s.end && s.agent_id && agentHours[s.agent_id]) {
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
         const diff = (eh * 60 + em) - (sh * 60 + sm) + 30;
-        if (diff > 0) agentMinutes += diff;
+        if (diff > 0) {
+          agentHours[s.agent_id].minutes += diff;
+          totalMins += diff;
+        }
       }
     });
-    return agentMinutes;
+
+    const totalH = Math.floor(totalMins / 60);
+    const totalM = totalMins % 60;
+    const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
+
+    let totalCalculatedRevenueSum = 0;
+
+    sortedAgents.forEach(ag => {
+      const rightContainer = document.getElementById(`agent-right-${ag.id}`);
+      if (rightContainer) {
+        const h = Math.floor(ag.minutes / 60);
+        const m = ag.minutes % 60;
+        
+        const timeSpan = rightContainer.querySelector('.agent-time-text');
+        if (timeSpan) timeSpan.innerText = `${h}h${m < 10 ? '0' : ''}${m}`;
+
+        let existingRev = document.getElementById(`agent-rev-${ag.id}`);
+        const activeRate = agentRates[ag.id];
+        
+        if (activeRate !== undefined && activeRate >= 0) {
+          const agentRevenue = (ag.minutes / 60) * activeRate;
+          totalCalculatedRevenueSum += agentRevenue;
+          const agentRevenueStr = agentRevenue.toFixed(2);
+          if (existingRev) {
+            existingRev.innerText = `(${agentRevenueStr} €)`;
+          } else {
+            rightContainer.insertAdjacentHTML('beforeend', ` <span style="color: #22c55e; font-size: 0.85rem;" id="agent-rev-${ag.id}">(${agentRevenueStr} €)</span>`);
+          }
+        } else if (existingRev) {
+          existingRev.remove();
+        }
+      }
+    });
+
+    const totalHoursEl = document.getElementById('modal-total-hours');
+    const hasAnyRate = Object.keys(agentRates).length > 0;
+
+    if (hasAnyRate) {
+      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${totalCalculatedRevenueSum.toFixed(2)} €)`;
+    } else {
+      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
+    }
   }
 
-  function getSortedAgentsData(totalMins) {
-    let filteredSlots = [];
+  function updateModalContent() {
+    const labelEl = document.getElementById('modal-period-label');
+    const agentsListEl = document.getElementById('modal-agents-list');
+
     if (modalTab === 'mois') {
-      const year = modalDate.getFullYear();
-      const month = modalDate.getMonth();
-      filteredSlots = slots.filter(s => {
-        const d = new Date(s.date_str);
-        return d.getFullYear() === year && d.getMonth() === month;
-      });
+      labelEl.innerText = modalDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     } else {
       const startOfWeek = getMonday(modalDate);
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(endOfWeek.getDate() + 6);
-      filteredSlots = slots.filter(s => {
-        const d = new Date(s.date_str);
-        return d >= startOfWeek && d <= endOfWeek;
-      });
+      labelEl.innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'})}`;
     }
 
+    const filteredSlots = getFilteredSlots();
     let agentHours = {};
     agents.forEach(a => agentHours[a.id] = { id: a.id, name: a.name, minutes: 0 });
 
@@ -550,30 +537,7 @@
       }
     });
 
-    const totalH = Math.floor(totalMins / 60);
-    const totalM = totalMins % 60;
     const sortedAgents = Object.values(agentHours).sort((a, b) => b.minutes - a.minutes);
-
-    return { sortedAgents, totalH, totalM };
-  }
-
-  function updateModalContentKeepingFocus(focusedAgentId = null) {
-    const labelEl = document.getElementById('modal-period-label');
-    const totalHoursEl = document.getElementById('modal-total-hours');
-    const agentsListEl = document.getElementById('modal-agents-list');
-
-    if (modalTab === 'mois') {
-      labelEl.innerText = modalDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    } else {
-      const startOfWeek = getMonday(modalDate);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(endOfWeek.getDate() + 6);
-      labelEl.innerText = `${startOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'})} – ${endOfWeek.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'})}`;
-    }
-
-    const totalMins = getFilteredSlotsMinutes();
-    let { sortedAgents, totalH, totalM } = getSortedAgentsData(totalMins);
-
     agentsListEl.innerHTML = '';
 
     sortedAgents.forEach((ag, index) => {
@@ -613,26 +577,7 @@
       agentsListEl.appendChild(cardItem);
     });
 
-    let targetRate = 0;
-    if (sortedAgents.length > 0) {
-      const firstAgentId = sortedAgents[0].id;
-      if (agentRates[firstAgentId] !== undefined) {
-        targetRate = agentRates[firstAgentId];
-      }
-    }
-
-    const totalHoursDecimal = totalMins / 60;
-    const globalCalculatedRevenue = totalHoursDecimal * targetRate;
-
-    if (targetRate > 0) {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM} (${globalCalculatedRevenue.toFixed(2)} €)`;
-    } else {
-      totalHoursEl.innerText = `${totalH}h${totalM < 10 ? '0' : ''}${totalM}`;
-    }
-  }
-
-  function updateModalContent() {
-    updateModalContentKeepingFocus(null);
+    updateCalculationsOnlyValues();
   }
 
   function getMonday(d) {
