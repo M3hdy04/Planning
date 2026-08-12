@@ -16,8 +16,10 @@
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
     .container { width: 100%; max-width: 1400px; margin: 0 auto; }
-    .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; position: relative; }
+    .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; position: relative; flex-wrap: wrap; gap: 12px; }
     .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-left { display: flex; flex-direction: column; gap: 4px; }
+    .global-filter-select { background: #222; color: #a3e635; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; outline: none; }
     .badges-group { display: flex; gap: 6px; align-items: center; }
     .badge { background: #222; border: 1px solid #333; padding: 6px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: white; }
     
@@ -78,6 +80,12 @@
     .agent-rate-panel.open { display: flex; }
     .agent-rate-panel input { width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; outline: none; }
 
+    .agent-details-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 12px 16px; display: none; flex-direction: column; gap: 8px; font-size: 0.85rem; color: #333; }
+    .agent-details-panel.open { display: flex; }
+    .agent-details-panel label { font-size: 0.75rem; font-weight: 600; color: #555; text-transform: uppercase; margin-bottom: 2px; display: block; }
+    .agent-details-panel input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; background: white; outline: none; }
+    .btn-save-details { background: #111; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; margin-top: 4px; text-align: center; }
+
     #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 16px; }
     .auth-card { background: white; width: 100%; max-width: 400px; border-radius: 20px; padding: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.4); text-align: center; }
     .auth-card h2 { margin-top: 0; margin-bottom: 4px; font-size: 1.4rem; }
@@ -128,10 +136,17 @@
 
 <div class="container" id="main-app-container" style="display: none;">
   <div class="header">
-    <div>
+    <div class="header-left">
       <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;" id="header-secteur-label">BASIC FIT • ACCUEIL</div>
       <h1>Planning remplacements</h1>
     </div>
+    
+    <div id="global-filter-wrapper" style="display: none;">
+      <select id="global-sector-filter" class="global-filter-select" onchange="onGlobalSectorFilterChange()">
+        <option value="ALL">🌐 Tous les secteurs (Vue globale)</option>
+      </select>
+    </div>
+
     <div class="badges-group">
       <div class="badge" onclick="openTotalModal()">⏱️ Totaux</div>
       <div class="badge" onclick="openAgentsModal()">👥 <span id="agent-count-badge">0</span></div>
@@ -202,7 +217,6 @@
   </div>
 </div>
 
-<!-- MODALE GESTION DES PROFILS (VIDE AU DÉPART, AJOUT MANUEL DES CLUBS) -->
 <div class="modal-overlay" id="profiles-manager-modal" style="display: none;">
   <div class="modal-card" style="max-width: 580px;">
     <button class="modal-close" onclick="closeProfilesManagerModal()">✕</button>
@@ -220,17 +234,16 @@
         <select id="manage-role" class="form-control">
           <option value="">— Sélectionner un rôle —</option>
           <option value="Chef secteur">Chef de secteur</option>
-          <option value="Responsable globale">Responsable globale (Tous)</option>
-          <option value="Super Admin : Développeur">Super Admin : Développeur (Tous)</option>
+          <option value="Responsable globale">Responsable globale</option>
+          <option value="Super Admin : Développeur">Super Admin : Développeur</option>
         </select>
         <input type="password" id="manage-password" class="form-control" placeholder="Mot de passe">
       </div>
       
-      <!-- Section d'ajout manuel de clubs pour le profil sélectionné -->
       <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px;">
         <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; display:block; margin-bottom:4px;">Clubs assignés manuellement à ce profil :</label>
         <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-          <input type="text" id="new-club-input" class="form-control" placeholder="Nom du club à ajouter (ex: Strasbourg Centre)">
+          <input type="text" id="new-club-input" class="form-control" placeholder="Nom du club à ajouter">
           <button type="button" class="btn-submit" style="margin-top:0; width:auto; padding:0 14px;" onclick="addClubToCurrentEditingProfile()">Ajouter club</button>
         </div>
         <div id="assigned-clubs-tags" style="display: flex; flex-wrap: wrap; gap: 4px; min-height: 28px; background: white; padding: 6px; border: 1px solid var(--border); border-radius: 8px;">
@@ -279,11 +292,24 @@
     <button class="modal-close" onclick="closeAgentsModal()">✕</button>
     <h3 style="margin-top:0; margin-bottom: 16px;">Gestion des agents</h3>
     
-    <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-      <input type="text" id="new-agent-name" class="form-control" placeholder="Nom du nouvel agent">
-      <button class="btn-submit" style="margin-top:0; width: auto; padding: 0 16px;" onclick="addAgent()">Ajouter</button>
+    <div style="background: #f8f9fa; padding: 12px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;">
+      <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 8px;">➕ Ajouter un nouvel agent</div>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="text" id="new-agent-name" class="form-control" placeholder="Nom de l'agent">
+      </div>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="text" id="new-agent-phone" class="form-control" placeholder="Numéro de téléphone">
+      </div>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="email" id="new-agent-email" class="form-control" placeholder="Adresse mail">
+      </div>
+      <div class="form-group" style="margin-bottom: 12px;">
+        <input type="text" id="new-agent-rib" class="form-control" placeholder="RIB (IBAN)">
+      </div>
+      <button class="btn-submit" style="margin-top:0; max-width:none;" onclick="addAgent()">Enregistrer le nouvel agent</button>
     </div>
 
+    <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 8px;">Liste des agents :</div>
     <div id="agents-manage-list"></div>
   </div>
 </div>
@@ -297,19 +323,19 @@
   let selectedDateStr = new Date().toISOString().split('T')[0];
   let agents = [];
   let slots = [];
+  let allRawSlots = [];
   
   let modalTab = 'mois';
   let modalDate = new Date();
   let agentRates = {}; 
   let openRateAgents = {}; 
+  let openAgentDetails = {}; 
 
   const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
 
   let availableProfiles = [];
   let selectedProfileContext = null;
   let loggedInProfile = null;
-  
-  // Tableau temporaire des clubs assignés dans le formulaire d'administration de profil
   let currentEditingClubs = [];
 
   function togglePasswordVisibility(inputId, btn) {
@@ -445,11 +471,42 @@
       manageProfilesItem.style.display = 'none';
     }
 
+    const isGlobalRole = (profile.role && (profile.role.toLowerCase().includes('développeur') || profile.role.toLowerCase().includes('responsable global')));
+    const filterWrapper = document.getElementById('global-filter-wrapper');
+    if (isGlobalRole) {
+      filterWrapper.style.display = 'block';
+      buildGlobalSectorDropdown();
+    } else {
+      filterWrapper.style.display = 'none';
+    }
+
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('close-auth-btn').style.display = 'none';
     document.getElementById('main-app-container').style.display = 'block';
     
     initApp();
+  }
+
+  async function buildGlobalSectorDropdown() {
+    const selectEl = document.getElementById('global-sector-filter');
+    selectEl.innerHTML = `<option value="ALL">🌐 Tous les secteurs (Vue globale)</option>`;
+
+    const { data } = await db.from('slots').select('club');
+    if (data) {
+      const uniqueClubs = [...new Set(data.map(s => s.club ? s.club.trim() : '').filter(Boolean))].sort();
+      uniqueClubs.forEach(club => {
+        const opt = document.createElement('option');
+        opt.value = club;
+        opt.innerText = `📍 Secteur / Club : ${club}`;
+        selectEl.appendChild(opt);
+      });
+    }
+  }
+
+  function onGlobalSectorFilterChange() {
+    applySlotsFiltering();
+    renderWeek();
+    renderSlots();
   }
 
   function cancelSwitchProfile() {
@@ -622,11 +679,10 @@
     const name = document.getElementById('manage-name').value.trim();
     const role = document.getElementById('manage-role').value;
     const password = document.getElementById('manage-password').value.trim();
-    // On rassemble les clubs manuels sous forme de chaîne (séparés par des virgules) pour la colonne sector
     const sector = currentEditingClubs.join(', ');
 
     if (!username || !name || !role || !password) {
-      alert("Veuillez remplir tous les champs obligatoires (identifiant, nom, rôle, mot de passe).");
+      alert("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
@@ -649,7 +705,6 @@
       document.getElementById('manage-role').value = p.role;
       document.getElementById('manage-password').value = p.password;
       
-      // Récupérer les clubs manuels depuis la chaîne sector séparée par des virgules
       currentEditingClubs = p.sector ? p.sector.split(',').map(c => c.trim()).filter(Boolean) : [];
       renderAssignedClubsTags();
 
@@ -668,7 +723,6 @@
   async function initApp() {
     await fetchAgents();
     await fetchSlots();
-    renderWeek();
   }
 
   async function fetchAgents() {
@@ -679,34 +733,47 @@
 
   async function fetchSlots() {
     const { data } = await db.from('slots').select('*');
-    let allSlots = data || [];
+    allRawSlots = data || [];
 
-    // FILTRAGE SELON LES CLUBS ASSIGNÉS AU PROFIL CONNECTÉ
-    if (loggedInProfile && loggedInProfile.sector && loggedInProfile.sector.trim() !== '') {
-      // Sépare les clubs du profil (ex: "Strasbourg, Haguenau")
-      const allowedClubs = loggedInProfile.sector.split(',').map(c => c.trim().toLowerCase()).filter(Boolean);
-      
-      // Ne garde que les créneaux dont le club correspond à l'un des clubs assignés
-      slots = allSlots.filter(s => {
-        if (!s.club) return false;
-        const slotClub = s.club.trim().toLowerCase();
-        return allowedClubs.some(allowed => slotClub.includes(allowed));
-      });
-    } else {
-      // Si aucun club assigné (profil vide) ou profil global/admin, on filtre ou on affiche tout selon le rôle
-      if (loggedInProfile && loggedInProfile.role && loggedInProfile.role.toLowerCase().includes('chef secteur')) {
-        // Un chef de secteur sans club assigné ne voit rien (vide)
-        slots = [];
-      } else {
-        // Administrateurs / Responsables globales voient tout
-        slots = allSlots;
-      }
+    const isGlobalRole = (loggedInProfile && loggedInProfile.role && (loggedInProfile.role.toLowerCase().includes('développeur') || loggedInProfile.role.toLowerCase().includes('responsable global')));
+    if (isGlobalRole) {
+      buildGlobalSectorDropdown();
     }
 
+    applySlotsFiltering();
     renderWeek();
     renderSlots();
     if (document.getElementById('total-modal').style.display === 'flex') {
       updateModalContent();
+    }
+  }
+
+  function applySlotsFiltering() {
+    if (!loggedInProfile) {
+      slots = allRawSlots;
+      return;
+    }
+
+    const isGlobalRole = loggedInProfile.role && (loggedInProfile.role.toLowerCase().includes('développeur') || loggedInProfile.role.toLowerCase().includes('responsable global'));
+
+    if (isGlobalRole) {
+      const globalFilterVal = document.getElementById('global-sector-filter') ? document.getElementById('global-sector-filter').value : 'ALL';
+      if (globalFilterVal === 'ALL') {
+        slots = allRawSlots;
+      } else {
+        slots = allRawSlots.filter(s => s.club && s.club.trim().toLowerCase() === globalFilterVal.toLowerCase());
+      }
+    } else {
+      if (loggedInProfile.sector && loggedInProfile.sector.trim() !== '') {
+        const allowedClubs = loggedInProfile.sector.split(',').map(c => c.trim().toLowerCase()).filter(Boolean);
+        slots = allRawSlots.filter(s => {
+          if (!s.club) return false;
+          const slotClub = s.club.trim().toLowerCase();
+          return allowedClubs.some(allowed => slotClub.includes(allowed));
+        });
+      } else {
+        slots = [];
+      }
     }
   }
 
@@ -757,7 +824,7 @@
     document.getElementById('day-covered-count').innerText = `${covered}/${daySlots.length} couverts`;
 
     if (daySlots.length === 0) {
-      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px; grid-column: 1 / -1;">Aucun créneau disponible ou profil vide.</div>`;
+      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px; grid-column: 1 / -1;">Aucun créneau disponible ou secteur vide.</div>`;
       return;
     }
 
@@ -814,9 +881,11 @@
       document.getElementById('form-start').value = '09:00';
       document.getElementById('form-end').value = '13:00';
       
-      // Pré-remplir avec le premier club assigné au profil si disponible
       let defaultClub = '';
-      if (loggedInProfile && loggedInProfile.sector) {
+      const globalFilterVal = document.getElementById('global-sector-filter') ? document.getElementById('global-sector-filter').value : 'ALL';
+      if (globalFilterVal && globalFilterVal !== 'ALL') {
+        defaultClub = globalFilterVal;
+      } else if (loggedInProfile && loggedInProfile.sector) {
         const clubs = loggedInProfile.sector.split(',').map(c => c.trim()).filter(Boolean);
         if (clubs.length > 0) defaultClub = clubs[0];
       }
@@ -871,15 +940,30 @@
   }
 
   async function addAgent() {
-    const nameInput = document.getElementById('new-agent-name');
-    const name = nameInput.value.trim();
-    if (!name) return;
+    const name = document.getElementById('new-agent-name').value.trim();
+    const phone = document.getElementById('new-agent-phone').value.trim();
+    const email = document.getElementById('new-agent-email').value.trim();
+    const rib = document.getElementById('new-agent-rib').value.trim();
 
-    await db.from('agents').insert([{ name }]);
-    nameInput.value = '';
-    await fetchAgents();
-    renderAgentsManageList();
-    renderSlots();
+    if (!name) {
+      alert("Veuillez entrer au moins un nom pour l'agent.");
+      return;
+    }
+
+    const { error } = await db.from('agents').insert([{ name, phone, email, rib }]);
+    if (!error) {
+      document.getElementById('new-agent-name').value = '';
+      document.getElementById('new-agent-phone').value = '';
+      document.getElementById('new-agent-email').value = '';
+      document.getElementById('new-agent-rib').value = '';
+      
+      await fetchAgents();
+      renderAgentsManageList();
+      renderSlots();
+      alert("Agent ajouté avec succès !");
+    } else {
+      alert("Erreur lors de l'ajout de l'agent.");
+    }
   }
 
   async function deleteAgent(id) {
@@ -891,21 +975,62 @@
     }
   }
 
+  function toggleAgentDetails(agentId) {
+    openAgentDetails[agentId] = !openAgentDetails[agentId];
+    renderAgentsManageList();
+  }
+
+  async function saveAgentDetails(agentId) {
+    const phone = document.getElementById(`agent-phone-${agentId}`).value.trim();
+    const email = document.getElementById(`agent-email-${agentId}`).value.trim();
+    const rib = document.getElementById(`agent-rib-${agentId}`).value.trim();
+
+    const { error } = await db.from('agents').update({ phone, email, rib }).eq('id', agentId);
+    if (!error) {
+      alert("Coordonnées modifiées et enregistrées avec succès !");
+      await fetchAgents();
+    } else {
+      alert("Erreur lors de la modification.");
+    }
+  }
+
   function renderAgentsManageList() {
     const container = document.getElementById('agents-manage-list');
     container.innerHTML = '';
     agents.forEach((a, index) => {
       const color = agentColors[index % agentColors.length];
-      const row = document.createElement('div');
-      row.className = 'agent-row';
-      row.innerHTML = `
-        <div class="agent-info">
-          <div class="dot" style="background: ${color};"></div>
-          <span>${a.name}</span>
+      const isOpen = !!openAgentDetails[a.id];
+
+      const cardItem = document.createElement('div');
+      cardItem.className = 'agent-card-item';
+      cardItem.innerHTML = `
+        <div class="agent-row">
+          <div class="agent-info">
+            <div class="dot" style="background: ${color};"></div>
+            <span>${a.name}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button class="btn-agent-plus" onclick="toggleAgentDetails('${a.id}')" title="Afficher/Modifier les coordonnées">${isOpen ? '▲' : '▼'}</button>
+            <button class="btn-action" onclick="deleteAgent('${a.id}')">🗑️</button>
+          </div>
         </div>
-        <button class="btn-action" onclick="deleteAgent('${a.id}')">🗑️</button>
+        <div class="agent-details-panel ${isOpen ? 'open' : ''}">
+          <div>
+            <label>Numéro de téléphone</label>
+            <input type="text" id="agent-phone-${a.id}" placeholder="ex. 06 12 34 56 78" value="${a.phone || ''}">
+          </div>
+          <div>
+            <label>Adresse mail</label>
+            <input type="email" id="agent-email-${a.id}" placeholder="ex. agent@email.com" value="${a.email || ''}">
+          </div>
+          <div>
+            <label>RIB (IBAN)</label>
+            <input type="text" id="agent-rib-${a.id}" placeholder="FR76 ...." value="${a.rib || ''}">
+          </div>
+          <button class="btn-save-details" onclick="saveAgentDetails('${a.id}')">Modifier / Enregistrer</button>
+        </div>
       `;
-      container.appendChild(row);
+      container.appendChild(cardItem);
     });
   }
 
@@ -1110,7 +1235,6 @@
       agentsListEl.appendChild(cardItem);
     });
 
-    updateCalculationsOnlyValue(); // function alias safety
     updateCalculationsOnlyValues();
   }
 
