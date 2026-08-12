@@ -1,702 +1,160 @@
-active` : '';
-          subItem.innerHTML = `🏢 ${club}`;
-          subItem.onclick = (e) => {
-            e.stopPropagation();
-            selectGlobalFilter('CLUB', club, `🏢 ${club}`);
-          };
-          container.appendChild(subItem);
-        });
-      });
-    }
-  }
-
-  function selectGlobalFilter(type, value, labelText = '') {
-    currentGlobalFilterType = type;
-    currentGlobalFilterValue = value;
-    document.getElementById('global-filter-current-label').innerText = labelText || value;
-    document.getElementById('custom-dropdown-list').classList.remove('open');
-    filterAndRenderSlots();
-  }
-
-  window.onclick = function(event) {
-    if (!event.target.closest('.custom-dropdown')) {
-      const dropdowns = document.getElementsByClassName('custom-dropdown-content');
-      for (let i = 0; i < dropdowns.length; i++) {
-        dropdowns[i].classList.remove('open');
-      }
-    }
-    if (!event.target.closest('.profile-btn') && !event.target.closest('.profile-dropdown')) {
-      document.getElementById('profile-dropdown').classList.remove('open');
-    }
-  };
-
-  function toggleProfileDropdown(event) {
-    event.stopPropagation();
-    document.getElementById('profile-dropdown').classList.toggle('open');
-  }
-
-  function triggerSwitchProfile() {
-    document.getElementById('profile-dropdown').classList.remove('open');
-    document.getElementById('main-app-container').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
-    document.getElementById('auth-view-password').style.display = 'none';
-    document.getElementById('auth-view-profiles').style.display = 'block';
-    document.getElementById('close-auth-btn').style.display = 'block';
-    initAuthScreen();
-  }
-
-  function cancelSwitchProfile() {
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('main-app-container').style.display = 'block';
-  }
-
-  function triggerLogout() {
-    localStorage.removeItem('basicfit_logged_profile_id');
-    location.reload();
-  }
-
-  function openAccountModal() {
-    document.getElementById('profile-dropdown').classList.remove('open');
-    document.getElementById('account-modal').style.display = 'flex';
-  }
-  function closeAccountModal() {
-    document.getElementById('account-modal').style.display = 'none';
-  }
-  async function saveAccountSettings() {
-    const newName = document.getElementById('account-name').value.trim();
-    if (!newName) {
-      alert("Le nom ne peut pas être vide.");
-      return;
-    }
-    loggedInProfile.name = newName;
-    document.getElementById('dropdown-name-text').innerText = newName;
-    
-    await db.from('profiles').update({ name: newName }).eq('id', loggedInProfile.id);
-    closeAccountModal();
-  }
-
-  function openProfilesManagerModal() {
-    document.getElementById('profile-dropdown').classList.remove('open');
-    document.getElementById('profiles-manager-modal').style.display = 'flex';
-    renderProfilesManageList();
-  }
-  function closeProfilesManagerModal() {
-    document.getElementById('profiles-manager-modal').style.display = 'none';
-    resetProfileForm();
-  }
-
-  async function renderProfilesManageList() {
-    const { data } = await db.from('profiles').select('*').order('name');
-    if (data) availableProfiles = data;
-
-    const container = document.getElementById('profiles-manage-list');
-    container.innerHTML = '';
-
-    availableProfiles.forEach(p => {
-      const item = document.createElement('div');
-      item.className = 'agent-card-item';
-      item.innerHTML = `
-        <div class="agent-row">
-          <div class="agent-info">
-            <div>
-              <div>${p.name} <span style="font-size:0.75rem; color:#666;">(@${p.username})</span></div>
-              <div style="font-size:0.75rem; color:#888; font-weight:normal;">${p.role} • Secteur: ${p.sector || 'Aucun'}</div>
-            </div>
-          </div>
-          <div class="agent-right">
-            <button class="btn-action" onclick="editProfileAdmin(${p.id})">✏️</button>
-            <button class="btn-action" style="color:#f87171;" onclick="deleteProfileAdmin(${p.id})">🗑️</button>
-          </div>
-        </div>
-      `;
-      container.appendChild(item);
-    });
-  }
-
-  async function saveProfileAdmin() {
-    const id = document.getElementById('manage-profile-id').value;
-    const username = document.getElementById('manage-username').value.trim().toLowerCase();
-    const name = document.getElementById('manage-name').value.trim();
-    const role = document.getElementById('manage-role').value;
-    const password = document.getElementById('manage-password').value;
-    const sector = document.getElementById('manage-sector').value.trim();
-
-    if (!username || !name || !role) {
-      alert("Veuillez remplir au moins l'identifiant, le nom et le rôle.");
-      return;
-    }
-
-    const payload = { username, name, role, sector };
-    if (password) payload.password = password;
-
-    if (id) {
-      await db.from('profiles').update(payload).eq('id', id);
-    } else {
-      if (!password) {
-        alert("Un mot de passe est obligatoire pour un nouveau profil.");
-        return;
-      }
-      await db.from('profiles').insert([payload]);
-    }
-
-    resetProfileForm();
-    renderProfilesManageList();
-  }
-
-  async function editProfileAdmin(id) {
-    const { data } = await db.from('profiles').select('*').eq('id', id).single();
-    if (data) {
-      document.getElementById('manage-profile-id').value = data.id;
-      document.getElementById('manage-username').value = data.username || '';
-      document.getElementById('manage-name').value = data.name || '';
-      document.getElementById('manage-role').value = data.role || '';
-      document.getElementById('manage-password').value = '';
-      document.getElementById('manage-sector').value = data.sector || '';
-      document.getElementById('profile-form-title').innerText = "✏️ Modifier le profil";
-      document.getElementById('btn-cancel-profile-edit').style.display = 'block';
-    }
-  }
-
-  function resetProfileForm() {
-    document.getElementById('manage-profile-id').value = '';
-    document.getElementById('manage-username').value = '';
-    document.getElementById('manage-name').value = '';
-    document.getElementById('manage-role').value = '';
-    document.getElementById('manage-password').value = '';
-    document.getElementById('manage-sector').value = '';
-    document.getElementById('profile-form-title').innerText = "➕ Ajouter un nouveau profil";
-    document.getElementById('btn-cancel-profile-edit').style.display = 'none';
-  }
-
-  async function deleteProfileAdmin(id) {
-    if (confirm("Voulez-vous vraiment supprimer ce profil ?")) {
-      await db.from('profiles').delete().eq('id', id);
-      renderProfilesManageList();
-    }
-  }
-
-  async function initApp() {
-    await loadAgents();
-    await loadSlots();
-    renderWeekNav();
-    renderDays();
-    filterAndRenderSlots();
-  }
-
-  async function loadAgents() {
-    // ----------------------------------------------------
-    // MODIFICATION PRINCIPALE : Isolation des agents par secteur
-    // ----------------------------------------------------
-    let query = db.from('agents').select('*');
-    
-    // Si l'utilisateur connecté est un chef de secteur (et non un rôle global),
-    // on restreint la récupération aux agents créés par son secteur.
-    const isGlobalRole = loggedInProfile && loggedInProfile.role && (
-      loggedInProfile.role.toLowerCase().includes('développeur') || 
-      loggedInProfile.role.toLowerCase().includes('responsable global')
-    );
-
-    if (!isGlobalRole && loggedInProfile && loggedInProfile.sector) {
-      query = query.eq('secteur', loggedInProfile.sector);
-    }
-
-    const { data, error } = await query.order('name');
-    if (!error && data) {
-      agents = data;
-      document.getElementById('agent-count-badge').innerText = agents.length;
-    }
-  }
-
-  async function loadSlots() {
-    const { data, error } = await db.from('slots').select('*');
-    if (!error && data) {
-      allRawSlots = data;
-    }
-  }
-
-  function filterAndRenderSlots() {
-    const isGlobalRole = loggedInProfile && loggedInProfile.role && (
-      loggedInProfile.role.toLowerCase().includes('développeur') || 
-      loggedInProfile.role.toLowerCase().includes('responsable global')
-    );
-
-    let filtered = [...allRawSlots];
-
-    // 1. Restriction si l'utilisateur est un chef de secteur restreint à son secteur
-    if (!isGlobalRole && loggedInProfile && loggedInProfile.sector) {
-      const userSec = loggedInProfile.sector.toLowerCase();
-      filtered = filtered.filter(s => s.club && s.club.toLowerCase().includes(userSec));
-    }
-
-    // 2. Filtre actif du menu déroulant supérieur (pour Super Admin / Resp Global)
-    if (isGlobalRole && currentGlobalFilterValue !== 'ALL') {
-      if (currentGlobalFilterType === 'SECTEUR') {
-        // Filtrage par secteur (ex: tous les clubs associés à ce secteur)
-        // Ici on filtre si le club contient les mots clés ou correspond
-        filtered = filtered.filter(s => s.club && s.club.toLowerCase().includes(currentGlobalFilterValue.replace('Secteur ', '').toLowerCase()));
-      } else if (currentGlobalFilterType === 'CLUB') {
-        filtered = filtered.filter(s => s.club && s.club.toLowerCase() === currentGlobalFilterValue.toLowerCase());
-      }
-    }
-
-    // Filtrer par date sélectionnée
-    slots = filtered.filter(s => s.date === selectedDateStr);
-    renderSlots();
-    updateCoveredCount();
-  }
-
-  function changeWeek(direction) {
-    currentDate.setDate(currentDate.getDate() + (direction * 7));
-    renderWeekNav();
-    renderDays();
-  }
-
-  function renderWeekNav() {
-    const startOfWeek = new Date(currentDate);
-    const dayOfWeek = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    startOfWeek.setDate(diff);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-    const options = { day: 'numeric', month: 'long', year: 'numeric' };
-    const label = `${startOfWeek.toLocaleDateString('fr-FR', options)} - ${endOfWeek.toLocaleDateString('fr-FR', options)}`;
-    document.getElementById('week-label').innerText = label;
-  }
-
-  function renderDays() {
-    const daysContainer = document.getElementById('days-container');
-    daysContainer.innerHTML = '';
-
-    const startOfWeek = new Date(currentDate);
-    const dayOfWeek = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    startOfWeek.setDate(diff);
-
-    const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
-
-      const dayCard = document.createElement('div');
-      dayCard.className = `day-card ${dateStr === selectedDateStr ? 'active' : ''}`;
-      
-      const daySlots = allRawSlots.filter(s => s.date === dateStr);
-      const coveredCount = daySlots.filter(s => s.agent).length;
-      const progressPercent = daySlots.length > 0 ? (coveredCount / daySlots.length) * 100 : 0;
-
-      dayCard.innerHTML = `
-        <div style="font-size: 0.75rem; text-transform: uppercase; opacity: 0.7;">${dayNames[i]}</div>
-        <div style="font-size: 1.1rem; font-weight: 700; margin-top: 2px;">${d.getDate()}</div>
-        <div class="day-progress">
-          <div class="day-progress-bar" style="width: ${progressPercent}%;"></div>
-        </div>
-      `;
-      dayCard.onclick = () => {
-        selectedDateStr = dateStr;
-        renderDays();
-        filterAndRenderSlots();
-      };
-      daysContainer.appendChild(dayCard);
-    }
-
-    const options = { weekday: 'long', day: 'numeric', month: 'long' };
-    const formattedDate = new Date(selectedDateStr).toLocaleDateString('fr-FR', options);
-    document.getElementById('selected-day-title').innerText = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
-  }
-
-  function renderSlots() {
-    const list = document.getElementById('slots-list');
-    list.innerHTML = '';
-
-    if (slots.length === 0) {
-      list.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 30px;">Aucun créneau pour cette journée.</div>`;
-      return;
-    }
-
-    slots.forEach(slot => {
-      const card = document.createElement('div');
-      card.className = 'slot-card';
-
-      let agentOptions = `<option value="">-- Aucun agent --</option>`;
-      agents.forEach((agent, idx) => {
-        const selected = slot.agent === agent.name ? 'selected' : '';
-        agentOptions += `<option value="${agent.name}" ${selected}>${agent.name}</option>`;
-      });
-
-      let dotColor = '#ccc';
-      if (slot.agent) {
-        const agentObj = agents.find(a => a.name === slot.agent);
-        if (agentObj) {
-          const index = agents.indexOf(agentObj);
-          dotColor = agentColors[index % agentColors.length];
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Remplacements</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #1alala;
+            --border: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         }
-      }
-
-      card.style.setProperty('--dot-color', dotColor);
-
-      card.innerHTML = `
-        <div class="slot-top">
-          <div>
-            <div class="slot-time">${slot.start} - ${slot.end}</div>
-            <div class="slot-club">📍 ${slot.club || 'Club non spécifié'}</div>
-          </div>
-          <div class="slot-actions">
-            <button class="btn-action" onclick="editSlot('${slot.id}')">✏️</button>
-            <button class="btn-action" onclick="deleteSlot('${slot.id}')">🗑️</button>
-          </div>
-        </div>
-        <div class="select-wrapper">
-          <select onchange="assignAgent('${slot.id}', this.value)">
-            ${agentOptions}
-          </select>
-        </div>
-      `;
-      list.appendChild(card);
-    });
-  }
-
-  function updateCoveredCount() {
-    const covered = slots.filter(s => s.agent).length;
-    document.getElementById('day-covered-count').innerText = `${covered}/${slots.length} couverts`;
-  }
-
-  function showForm(slotData = null) {
-    const form = document.getElementById('slot-form');
-    form.style.display = 'block';
-    if (slotData) {
-      document.getElementById('form-title').innerText = "Modifier le créneau";
-      document.getElementById('edit-id').value = slotData.id;
-      document.getElementById('form-start').value = slotData.start;
-      document.getElementById('form-end').value = slotData.end;
-      document.getElementById('form-club').value = slotData.club || '';
-    } else {
-      document.getElementById('form-title').innerText = "Nouveau créneau";
-      document.getElementById('edit-id').value = '';
-      document.getElementById('form-club').value = loggedInProfile && loggedInProfile.sector ? loggedInProfile.sector : '';
-    }
-  }
-
-  function hideForm() {
-    document.getElementById('slot-form').style.display = 'none';
-  }
-
-  async function saveSlot() {
-    const id = document.getElementById('edit-id').value;
-    const start = document.getElementById('form-start').value;
-    const end = document.getElementById('form-end').value;
-    const club = document.getElementById('form-club').value.trim();
-
-    if (!start || !end) {
-      alert("Veuillez renseigner les horaires.");
-      return;
-    }
-
-    if (id) {
-      await db.from('slots').update({ start, end, club }).eq('id', id);
-    } else {
-      await db.from('slots').insert([{
-        date: selectedDateStr,
-        start,
-        end,
-        club,
-        agent: null
-      }]);
-    }
-
-    hideForm();
-    await loadSlots();
-    filterAndRenderSlots();
-  }
-
-  async function editSlot(id) {
-    const slot = allRawSlots.find(s => String(s.id) === String(id));
-    if (slot) showForm(slot);
-  }
-
-  async function deleteSlot(id) {
-    if (confirm("Voulez-vous supprimer ce créneau ?")) {
-      await db.from('slots').delete().eq('id', id);
-      await loadSlots();
-      filterAndRenderSlots();
-    }
-  }
-
-  async function assignAgent(slotId, agentName) {
-    await db.from('slots').update({ agent: agentName || null }).eq('id', slotId);
-    await loadSlots();
-    filterAndRenderSlots();
-  }
-
-  function openAgentsModal() {
-    document.getElementById('agents-modal').style.display = 'flex';
-    renderAgentsManageList();
-  }
-  function closeAgentsModal() {
-    document.getElementById('agents-modal').style.display = 'none';
-  }
-
-  async function addAgent() {
-    const name = document.getElementById('new-agent-name').value.trim();
-    const phone = document.getElementById('new-agent-phone').value.trim();
-    const email = document.getElementById('new-agent-email').value.trim();
-    const rib = document.getElementById('new-agent-rib').value.trim();
-
-    if (!name) {
-      alert("Le nom de l'agent est obligatoire.");
-      return;
-    }
-
-    // ----------------------------------------------------
-    // MODIFICATION PRINCIPALE : Attribution automatique du secteur lors de la création
-    // ----------------------------------------------------
-    const secteurAssigne = loggedInProfile && loggedInProfile.sector ? loggedInProfile.sector : 'Reims';
-
-    const { error } = await db.from('agents').insert([{
-      name,
-      phone,
-      email,
-      rib,
-      secteur: secteurAssigne // Associe l'agent spécifiquement au secteur du profil connecté
-    }]);
-
-    if (error) {
-      alert("Erreur lors de l'ajout de l'agent.");
-      return;
-    }
-
-    document.getElementById('new-agent-name').value = '';
-    document.getElementById('new-agent-phone').value = '';
-    document.getElementById('new-agent-email').value = '';
-    document.getElementById('new-agent-rib').value = '';
-
-    await loadAgents();
-    renderAgentsManageList();
-    filterAndRenderSlots();
-  }
-
-  async function renderAgentsManageList() {
-    const container = document.getElementById('agents-manage-list');
-    container.innerHTML = '';
-
-    if (agents.length === 0) {
-      container.innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Aucun agent dans votre secteur.</div>`;
-      return;
-    }
-
-    agents.forEach((agent, index) => {
-      const dotColor = agentColors[index % agentColors.length];
-      const isRateOpen = openRateAgents[agent.id] ? 'open' : '';
-      const isDetailsOpen = openAgentDetails[agent.id] ? 'open' : '';
-      const currentRate = agentRates[agent.id] !== undefined ? agentRates[agent.id] : 12;
-
-      const card = document.createElement('div');
-      card.className = 'agent-card-item';
-      card.innerHTML = `
-        <div class="agent-row">
-          <div class="agent-info">
-            <div class="dot" style="background: ${dotColor};"></div>
-            <div>${agent.name}</div>
-          </div>
-          <div class="agent-right">
-            <button class="btn-agent-plus" onclick="toggleAgentRate(${agent.id})" title="Taux horaire">€</button>
-            <button class="btn-agent-plus" onclick="toggleAgentDetails(${agent.id})" title="Modifier infos">⚙️</button>
-            <button class="btn-action" style="color: #f87171;" onclick="deleteAgent(${agent.id})">🗑️</button>
-          </div>
-        </div>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; }
+        .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .header-left { display: flex; flex-direction: column; gap: 4px; }
         
-        <div class="agent-rate-panel ${isRateOpen}" id="rate-panel-${agent.id}">
-          <span>Taux horaire (€/h) :</span>
-          <input type="number" value="${currentRate}" onchange="updateAgentRate(${agent.id}, this.value)">
+        .custom-dropdown { position: relative; display: inline-block; }
+        .custom-dropdown-btn { background: #222; color: #ae635; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .custom-dropdown-content { display: none; position: absolute; top: 110%; left: 0; background: #222; border: 1px solid #333; border-radius: 8px; box-shadow: var(--shadow); z-index: 100; min-width: 160px; }
+        .custom-dropdown-content.open { display: block; }
+        .custom-dropdown-item { padding: 10px 14px; font-size: 0.85rem; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); color: #fff; }
+        .custom-dropdown-item:hover { background: #333; }
+        .custom-dropdown-item.active { background: #ae635; font-weight: 700; }
+        
+        .badges-group { display: flex; gap: 6px; align-items: center; }
+        .badge { background: #222; border: 1px solid #333; padding: 6px 10px; border-radius: 20px; font-size: 0.8rem; color: #fff; }
+        
+        .profile-btn { background: #222; border: 1px solid #333; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
+        .profile-dropdown { display: none; position: absolute; top: 75px; right: 20px; background: #222; border: 1px solid #333; border-radius: 8px; width: 220px; z-index: 100; box-shadow: var(--shadow); }
+        .profile-dropdown.open { display: block; }
+        .profile-dropdown-header { padding: 14px 16px; border-bottom: 1px solid #333; }
+        .profile-dropdown-header .role { font-size: 0.75rem; color: #ae635; font-weight: 700; text-transform: uppercase; }
+        .profile-dropdown-header .name { font-size: 0.95rem; font-weight: 600; color: #fff; }
+        .profile-dropdown-item { padding: 12px 16px; font-size: 0.9rem; cursor: pointer; color: #fff; display: block; width: 100%; text-align: left; background: none; border: none; }
+        .profile-dropdown-item:hover { background: #333; }
+
+        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .btn-icon { background: white; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
+        .day-card { flex: 1; min-width: 65px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 6px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .day-card.active { background: #111; color: white; border-color: #111; }
+        .day-progress { position: absolute; bottom: 4px; left: 6px; right: 6px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .day-progress-bar { height: 100%; background: #ae635; width: 0%; }
+        
+        .slot-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .slot-info { display: flex; flex-direction: column; gap: 4px; }
+        .slot-time { font-weight: 700; font-size: 1.1rem; }
+        .slot-agent { font-size: 0.9rem; color: #666; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal.open { display: flex; }
+        .modal-content { background: white; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; }
+        .form-control { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; }
+        .btn { background: #111; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; }
+        
+        #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .auth-box { background: #1a1a1a; border: 1px solid #333; padding: 30px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; color: white; }
+    </style>
+</head>
+<body>
+
+    <!-- Écran de connexion -->
+    <div id="auth-screen">
+        <div class="auth-box">
+            <p style="font-size: 0.75rem; color: #ae635; text-transform: uppercase; font-weight: 700; margin-bottom: 8px;">Basic Fit - Planning</p>
+            <h2 style="margin-top: 0; margin-bottom: 20px;">Sélectionnez un profil</h2>
+            <p style="color: #888; font-size: 0.9rem; margin-bottom: 20px;">Choisissez votre profil pour accéder au planning</p>
+            <div id="profiles-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <span style="font-size: 0.75rem; color: #ae635; font-weight: 700;" id="user-role-display"></span>
+                <h1 id="user-name-display">Planning Remplacements</h1>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <div class="custom-dropdown" id="sector-filter-dropdown" style="display: none;">
+                    <button class="custom-dropdown-btn" onclick="toggleSectorDropdown()">
+                        <span id="selected-sector-label">Tous les secteurs</span>
+                        <span style="font-size: 0.7rem;">▼</span>
+                    </button>
+                    <div class="custom-dropdown-content" id="sector-dropdown-content"></div>
+                </div>
+                <div style="position: relative;">
+                    <div class="profile-btn" onclick="toggleProfileDropdown()">👤</div>
+                    <div class="profile-dropdown" id="profile-dropdown">
+                        <div class="profile-dropdown-header">
+                            <div class="role" id="dropdown-role"></div>
+                            <div class="name" id="dropdown-name"></div>
+                        </div>
+                        <button class="profile-dropdown-item" onclick="logout()">Changer de profil</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="agent-details-panel ${isDetailsOpen}" id="details-panel-${agent.id}">
-          <div>
-            <label>Téléphone</label>
-            <input type="text" id="edit-phone-${agent.id}" value="${agent.phone || ''}">
-          </div>
-          <div>
-            <label>Adresse mail</label>
-            <input type="email" id="edit-email-${agent.id}" value="${agent.email || ''}">
-          </div>
-          <div>
-            <label>RIB (IBAN)</label>
-            <input type="text" id="edit-rib-${agent.id}" value="${agent.rib || ''}">
-          </div>
-          <button class="btn-save-details" onclick="saveAgentDetails(${agent.id})">Enregistrer</button>
+        <div class="nav">
+            <button class="btn-icon" onclick="changeWeek(-1)">❮</button>
+            <h3 id="week-label" style="margin: 0; font-size: 1rem;">Semaine</h3>
+            <button class="btn-icon" onclick="changeWeek(1)">❯</button>
         </div>
-      `;
-      container.appendChild(card);
-    });
-  }
 
-  function toggleAgentRate(id) {
-    openRateAgents[id] = !openRateAgents[id];
-    renderAgentsManageList();
-  }
+        <div class="days" id="days-container"></div>
 
-  function toggleAgentDetails(id) {
-    openAgentDetails[id] = !openAgentDetails[id];
-    renderAgentsManageList();
-  }
+        <div style="display: flex; justify-space: between; align-items: center; margin-bottom: 16px;">
+            <h3 id="selected-date-label" style="margin: 0; font-size: 1.1rem;">Créneaux</h3>
+            <button class="btn" id="add-slot-btn" style="width: auto; padding: 8px 14px; font-size: 0.85rem; display: none;" onclick="openModal()">+ Ajouter un créneau</button>
+        </div>
 
-  function updateAgentRate(id, val) {
-    agentRates[id] = parseFloat(val) || 0;
-  }
+        <div id="slots-container"></div>
+    </div>
 
-  async function saveAgentDetails(id) {
-    const phone = document.getElementById(`edit-phone-${id}`).value.trim();
-    const email = document.getElementById(`edit-email-${id}`).value.trim();
-    const rib = document.getElementById(`edit-rib-${id}`).value.trim();
+    <!-- Modal Ajout de créneau -->
+    <div class="modal" id="slot-modal">
+        <div class="modal-content">
+            <h3 style="margin-top: 0;">Ajouter un créneau</h3>
+            <form id="slot-form" onsubmit="saveSlot(event)">
+                <div class="form-group">
+                    <label>Heure de début</label>
+                    <input type="time" id="slot-time" class="form-control" required>
+                </div>
+                <div class="form-group" id="agent-select-group">
+                    <label>Agent assigné</label>
+                    <select id="slot-agent" class="form-control"></select>
+                </div>
+                <button type="submit" class="btn">Enregistrer</button>
+                <button type="button" class="btn" style="background: #eee; color: #333; margin-top: 8px;" onclick="closeModal()">Annuler</button>
+            </form>
+        </div>
+    </div>
 
-    await db.from('agents').update({ phone, email, rib }).eq('id', id);
-    await loadAgents();
-    openAgentDetails[id] = false;
-    renderAgentsManageList();
-  }
-
-  async function deleteAgent(id) {
-    if (confirm("Voulez-vous supprimer cet agent ?")) {
-      await db.from('agents').delete().eq('id', id);
-      await loadAgents();
-      renderAgentsManageList();
-      filterAndRenderSlots();
-    }
-  }
-
-  function openTotalModal() {
-    document.getElementById('total-modal').style.display = 'flex';
-    renderTotalModalData();
-  }
-  function closeTotalModal() {
-    document.getElementById('total-modal').style.display = 'none';
-  }
-
-  function switchTotalTab(tab) {
-    modalTab = tab;
-    document.getElementById('btn-semaine').className = `toggle-btn ${tab === 'semaine' ? 'active' : ''}`;
-    document.getElementById('btn-mois').className = `toggle-btn ${tab === 'mois' ? 'active' : ''}`;
-    renderTotalModalData();
-  }
-
-  function changeModalDate(direction) {
-    if (modalTab === 'semaine') {
-      modalDate.setDate(modalDate.getDate() + (direction * 7));
-    } else {
-      modalDate.setMonth(modalDate.getMonth() + direction);
-    }
-    renderTotalModalData();
-  }
-
-  function renderTotalModalData() {
-    const labelEl = document.getElementById('modal-period-label');
-    let startPeriod, endPeriod;
-
-    if (modalTab === 'semaine') {
-      startPeriod = new Date(modalDate);
-      const dayOfWeek = startPeriod.getDay();
-      const diff = startPeriod.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-      startPeriod.setDate(diff);
-
-      endPeriod = new Date(startPeriod);
-      endPeriod.setDate(startPeriod.getDate() + 6);
-
-      labelEl.innerText = `${startPeriod.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} - ${endPeriod.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-    } else {
-      startPeriod = new Date(modalDate.getFullYear(), modalDate.getMonth(), 1);
-      endPeriod = new Date(modalDate.getFullYear(), modalDate.getMonth() + 1, 0);
-      labelEl.innerText = startPeriod.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    }
-
-    const startStr = startPeriod.toISOString().split('T')[0];
-    const endStr = endPeriod.toISOString().split('T')[0];
-
-    // Filtrer les créneaux couverts sur cette période et correspondant au secteur de l'utilisateur
-    const isGlobalRole = loggedInProfile && loggedInProfile.role && (
-      loggedInProfile.role.toLowerCase().includes('développeur') || 
-      loggedInProfile.role.toLowerCase().includes('responsable global')
-    );
-
-    let periodSlots = allRawSlots.filter(s => s.date >= startStr && s.date <= endStr && s.agent);
-
-    if (!isGlobalRole && loggedInProfile && loggedInProfile.sector) {
-      const userSec = loggedInProfile.sector.toLowerCase();
-      periodSlots = periodSlots.filter(s => s.club && s.club.toLowerCase().includes(userSec));
-    }
-
-    let totalMinutes = 0;
-    let totalCost = 0;
-    const agentStats = {};
-
-    agents.forEach(a => {
-      agentStats[a.name] = { minutes: 0, count: 0, id: a.id };
-    });
-
-    periodSlots.forEach(slot => {
-      if (slot.agent && agentStats[slot.agent]) {
-        const [startH, startM] = slot.start.split(':').map(Number);
-        const [endH, endM] = slot.end.split(':').map(Number);
-        const diffM = (endH * 60 + endM) - (startH * 60 + startM);
-        if (diffM > 0) {
-          const totalWithBreak = diffM + 30; // +30 min pointage
-          agentStats[slot.agent].minutes += totalWithBreak;
-          agentStats[slot.agent].count += 1;
-          totalMinutes += totalWithBreak;
-
-          const rate = agentRates[agentStats[slot.agent].id] !== undefined ? agentRates[agent.id] : 12;
-          totalCost += (totalWithBreak / 60) * rate;
+    <script>
+        // Configuration Supabase & Logique à connecter ici selon vos scripts initiaux
+        function toggleProfileDropdown() {
+            document.getElementById('profile-dropdown').classList.toggle('open');
         }
-      }
-    });
-
-    const totalHoursFormatted = formatMinutes(totalMinutes);
-    document.getElementById('modal-total-hours').innerText = `${totalHoursFormatted} / ${totalCost.toFixed(2)} €`;
-
-    const listContainer = document.getElementById('modal-agents-list');
-    listContainer.innerHTML = '';
-
-    agents.forEach((agent, index) => {
-      const stats = agentStats[agent.name];
-      if (stats && stats.count > 0) {
-        const hoursStr = formatMinutes(stats.minutes);
-        const rate = agentRates[agent.id] !== undefined ? agentRates[agent.id] : 12;
-        const cost = (stats.minutes / 60) * rate;
-        const dotColor = agentColors[index % agentColors.length];
-
-        const item = document.createElement('div');
-        item.className = 'agent-card-item';
-        item.innerHTML = `
-          <div class="agent-row">
-            <div class="agent-info">
-              <div class="dot" style="background: ${dotColor};"></div>
-              <div>${agent.name} <span style="font-size:0.75rem; color:#666; font-weight:normal;">(${stats.count} créneaux)</span></div>
-            </div>
-            <div class="agent-right" style="font-size: 0.95rem; font-weight: 700;">
-              ${hoursStr} <span style="font-size: 0.8rem; color:#666; font-weight:normal;">(${cost.toFixed(2)} €)</span>
-            </div>
-          </div>
-        `;
-        listContainer.appendChild(item);
-      }
-    });
-
-    if (listContainer.children.length === 0) {
-      listContainer.innerHTML = `<div style="text-align: center; color: #888; padding: 15px;">Aucune heure enregistrée pour cette période.</div>`;
-    }
-  }
-
-  function formatMinutes(totalM) {
-    const h = Math.floor(totalM / 60);
-    const m = totalM % 60;
-    return `${h}h${m < 10 ? '0' : ''}${m}`;
-  }
-
-  // Lancement de l'application à l'ouverture
-  checkInitialAuth();
-</script>
-
+        function logout() {
+            localStorage.removeItem('current_profile');
+            location.reload();
+        }
+        // Restauration simple de la session si enregistrée dans localStorage
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedProfile = localStorage.getItem('current_profile');
+            if(savedProfile) {
+                document.getElementById('auth-screen').style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
