@@ -3,67 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Planning Remplacements</title>
+  <title>HourCraft Pro • Gestion Avancée</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
-      --bg: #f8f9fa;
-      --card: #ffffff;
-      --text: #1a1a1a;
-      --border: #e5e7eb;
-      --shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-hover: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --primary: #22c55e;
+      --primary-hover: #16a34a;
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
     }
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
+    body { background: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; justify-content: center; }
     .container { width: 100%; max-width: 1400px; margin: 0 auto; }
-    .header { background: #111; color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
-    .badges-group { display: flex; gap: 6px; }
-    .badge { background: #222; border: 1px solid #333; padding: 6px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: white; }
-    .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .btn-icon { background: white; border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
-    .day-card { flex: 1; min-width: 65px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px 4px; text-align: center; cursor: pointer; position: relative; }
-    .day-card.active { background: #111; color: white; border-color: #111; }
-    .day-progress { position: absolute; bottom: 4px; left: 6px; right: 6px; height: 3px; background: #e5e7eb; border-radius: 2px; overflow: hidden; }
-    .day-progress-bar { height: 100%; background: #22c55e; width: 0%; }
-    .day-card.active .day-progress { background: #333; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 700; font-size: 1.1rem; }
-    #slots-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
-    .slot-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 0; box-shadow: var(--shadow); position: relative; }
-    .slot-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-    .slot-time { font-size: 1.2rem; font-weight: 700; }
-    .slot-club { color: #666; font-size: 0.9rem; margin-top: 2px; }
-    .slot-actions { display: flex; gap: 4px; }
-    .btn-action { background: #f3f4f6; border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; }
-    .select-wrapper { position: relative; width: 100%; margin-top: 8px; }
-    .select-wrapper::before { content: ''; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: var(--dot-color, #ccc); z-index: 2; pointer-events: none; }
-    select { width: 100%; padding: 10px 10px 10px 30px; border-radius: 10px; border: none; font-size: 0.95rem; background: #f3f4f6; appearance: none; cursor: pointer; font-weight: 500; }
-    .form-card { background: white; border: 2px solid #111; border-radius: 16px; padding: 16px; margin-top: 16px; margin-bottom: 16px; max-width: 500px; }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
-    .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
-    .btn-submit { width: 100%; background: #111; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; max-width: 300px; }
-    .btn-cancel { width: 100%; background: transparent; color: #666; border: 1px solid var(--border); padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px; }
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
-    .modal-card { background: white; width: 100%; max-width: 440px; border-radius: 20px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; max-height: 90vh; overflow-y: auto; }
-    .modal-close { position: absolute; top: 16px; right: 16px; background: #f3f4f6; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; color: #007aff; }
-    .toggle-container { display: flex; background: #f3f4f6; border-radius: 12px; padding: 4px; margin-bottom: 16px; }
-    .toggle-btn { flex: 1; padding: 8px; text-align: center; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #666; }
-    .toggle-btn.active { background: #111; color: #a3e635; }
-    .total-banner { background: #111; color: white; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; }
-    .total-banner h2 { color: #a3e635; margin: 0 0 4px 0; font-size: 2.2rem; }
-    .total-banner p { margin: 0; font-size: 0.85rem; opacity: 0.8; }
+    
+    .header { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); }
+    .header h1 { margin: 0; font-size: 1.3rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text); }
+    .badges-group { display: flex; gap: 8px; }
+    .badge { background: #0f172a; border: 1px solid var(--border); padding: 8px 14px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; color: var(--text); transition: 0.2s; font-weight: 600; }
+    .badge:hover { border-color: var(--primary); background: #1e293b; }
 
-    .agent-card-item { background: white; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
-    .agent-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-weight: 600; }
-    .agent-info { display: flex; align-items: center; gap: 10px; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
-    .agent-right { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
-    .btn-agent-plus { background: #f3f4f6; border: 1px solid var(--border); border-radius: 6px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: #333; }
-    .agent-rate-panel { background: #f8f9fa; border-top: 1px solid var(--border); padding: 10px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: #555; }
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); }
+    .stat-card span { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
+    .stat-card h3 { margin: 6px 0 0 0; font-size: 1.5rem; color: var(--primary); }
+
+    .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; background: var(--card); padding: 10px 16px; border-radius: 14px; border: 1px solid var(--border); }
+    .btn-icon { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; transition: 0.2s; }
+    .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+    .days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 20px; }
+    .day-card { flex: 1; min-width: 75px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 6px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; }
+    .day-card:hover { border-color: var(--text-muted); }
+    .day-card.active { background: var(--primary); color: #000; border-color: var(--primary); font-weight: bold; }
+    .day-progress { position: absolute; bottom: 6px; left: 8px; right: 8px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
+    .day-progress-bar { height: 100%; background: var(--accent); width: 0%; }
+    .day-card.active .day-progress-bar { background: #000; }
+
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-weight: 700; font-size: 1.1rem; }
+    #slots-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+    
+    .slot-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: var(--shadow); position: relative; transition: 0.2s; }
+    .slot-card:hover { border-color: var(--card-hover); }
+    .slot-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .slot-time { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+    .slot-club { color: var(--text-muted); font-size: 0.9rem; margin-top: 2px; }
+    .slot-actions { display: flex; gap: 6px; }
+    .btn-action { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+    .btn-action:hover { background: var(--card-hover); border-color: var(--text-muted); }
+
+    .select-wrapper { position: relative; width: 100%; margin-top: 10px; }
+    .select-wrapper::before { content: ''; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; border-radius: 50%; background: var(--dot-color, #ccc); z-index: 2; pointer-events: none; }
+    select { width: 100%; padding: 12px 12px 12px 36px; border-radius: 12px; border: 1px solid var(--border); font-size: 0.95rem; background: var(--bg); color: var(--text); appearance: none; cursor: pointer; font-weight: 600; outline: none; }
+    select:focus { border-color: var(--accent); }
+
+    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px; margin-top: 20px; margin-bottom: 20px; max-width: 500px; box-shadow: var(--shadow); }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; color: var(--text-muted); }
+    .form-control { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 1rem; background: var(--bg); color: var(--text); outline: none; }
+    .form-control:focus { border-color: var(--accent); }
+
+    .btn-submit { width: 100%; background: var(--primary); color: #000; border: none; padding: 14px; border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+    .btn-submit:hover { background: var(--primary-hover); }
+    .btn-cancel { width: 100%; background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .btn-cancel:hover { background: var(--bg); color: var(--text); }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
+    .modal-card { background: var(--card); width: 100%; max-width: 480px; border-radius: 24px; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); position: relative; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); }
+    .modal-close { position: absolute; top: 18px; right: 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; color: var(--text); transition: 0.2s; }
+    .modal-close:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+    .toggle-container { display: flex; background: var(--bg); border-radius: 14px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--border); }
+    .toggle-btn { flex: 1; padding: 10px; text-align: center; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--text-muted); transition: 0.2s; }
+    .toggle-btn.active { background: var(--primary); color: #000; }
+
+    .total-banner { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 16px; }
+    .total-banner h2 { color: var(--primary); margin: 0 0 6px 0; font-size: 2.2rem; }
+    .total-banner p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+
+    .agent-card-item { background: var(--bg); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; overflow: hidden; }
+    .agent-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; font-weight: 600; }
+    .agent-info { display: flex; align-items: center; gap: 12px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .agent-right { display: flex; align-items: center; gap: 10px; font-size: 1rem; }
+
+    .btn-agent-plus { background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; font-weight: bold; color: var(--text); transition: 0.2s; }
+    .btn-agent-plus:hover { border-color: var(--accent); color: var(--accent); }
+
+    .agent-rate-panel { background: #1e293b; border-top: 1px solid var(--border); padding: 12px 16px; display: none; align-items: center; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); }
     .agent-rate-panel.open { display: flex; }
-    .agent-rate-panel input { width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-weight: 600; font-size: 0.95rem; background: white; outline: none; }
+    .agent-rate-panel input { width: 90px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-weight: 700; font-size: 0.95rem; background: var(--bg); color: var(--text); outline: none; }
+    .agent-rate-panel input:focus { border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -71,8 +107,8 @@
 <div class="container">
   <div class="header">
     <div>
-      <div style="color: #a3e635; font-size: 0.75rem; font-weight: 800;">BASIC FIT • ACCUEIL</div>
-      <h1>Planning remplacements</h1>
+      <div style="color: var(--primary); font-size: 0.75rem; font-weight: 800; letter-spacing: 1px;">HOURCRAFT • PRO DASHBOARD</div>
+      <h1>Planning & Heures</h1>
     </div>
     <div class="badges-group">
       <div class="badge" onclick="openTotalModal()">⏱️ Totaux</div>
@@ -80,9 +116,20 @@
     </div>
   </div>
 
+  <div class="stats-bar">
+    <div class="stat-card">
+      <span>Créneaux cette semaine</span>
+      <h3 id="stat-total-slots">0</h3>
+    </div>
+    <div class="stat-card">
+      <span>Taux de couverture</span>
+      <h3 id="stat-coverage-rate">0%</h3>
+    </div>
+  </div>
+
   <div class="nav">
     <button class="btn-icon" onclick="changeWeek(-1)">‹</button>
-    <strong id="week-label"></strong>
+    <strong id="week-label" style="font-size: 0.95rem;"></strong>
     <button class="btn-icon" onclick="changeWeek(1)">›</button>
   </div>
 
@@ -90,28 +137,28 @@
 
   <div class="section-header">
     <span id="selected-day-title"></span>
-    <span id="day-covered-count" style="font-size: 0.9rem; color: #22c55e;">0/0 couverts</span>
+    <span id="day-covered-count" style="font-size: 0.9rem; color: var(--primary);">0/0 couverts</span>
   </div>
 
   <div id="slots-list"></div>
 
-  <button class="btn-submit" onclick="showForm()">+ Ajouter un créneau</button>
+  <button class="btn-submit" onclick="showForm()" style="max-width: 250px; margin-top: 20px;">+ Ajouter un créneau</button>
 
   <div class="form-card" id="slot-form" style="display: none;">
     <h3 id="form-title" style="margin-top:0;">Nouveau créneau</h3>
     <input type="hidden" id="edit-id">
     <div class="form-group">
       <label>Début / Fin</label>
-      <div style="display: flex; gap: 8px;">
+      <div style="display: flex; gap: 10px;">
         <input type="time" id="form-start" class="form-control" value="09:00">
         <input type="time" id="form-end" class="form-control" value="13:00">
       </div>
     </div>
     <div class="form-group">
-      <label>Club</label>
+      <label>Club / Lieu</label>
       <input type="text" id="form-club" class="form-control" placeholder="ex. Thillois, Cernay...">
     </div>
-    <button class="btn-submit" onclick="saveSlot()" style="max-width: none;">Enregistrer</button>
+    <button class="btn-submit" onclick="saveSlot()" style="max-width: none;">Enregistrer le créneau</button>
     <button class="btn-cancel" onclick="hideForm()">Annuler</button>
   </div>
 </div>
@@ -120,14 +167,14 @@
 <div class="modal-overlay" id="total-modal" style="display: none;">
   <div class="modal-card">
     <button class="modal-close" onclick="closeTotalModal()">✕</button>
-    <h3 style="margin-top:0; margin-bottom: 16px;">Totaux d'heures</h3>
+    <h3 style="margin-top:0; margin-bottom: 16px;">Totaux & Paie</h3>
 
     <div class="toggle-container">
       <button class="toggle-btn" id="btn-semaine" onclick="switchTotalTab('semaine')">Semaine</button>
       <button class="toggle-btn active" id="btn-mois" onclick="switchTotalTab('mois')">Mois</button>
     </div>
 
-    <div class="nav" style="margin-bottom: 12px;">
+    <div class="nav" style="margin-bottom: 12px; background: var(--bg);">
       <button class="btn-icon" onclick="changeModalDate(-1)">‹</button>
       <strong id="modal-period-label"></strong>
       <button class="btn-icon" onclick="changeModalDate(1)">›</button>
@@ -135,7 +182,11 @@
 
     <div class="total-banner">
       <h2 id="modal-total-hours">0h00 / 0h00</h2>
-      <p>heures couvertes au total (+30 min de pointage incluses)</p>
+      <p>heures couvertes (+30 min de pointage incluses)</p>
+    </div>
+
+    <div style="display:flex; justify-content: flex-end; margin-bottom: 12px;">
+      <button class="badge" onclick="exportSummary()" style="font-size: 0.75rem; padding: 6px 10px;">📋 Copier le récap</button>
     </div>
 
     <div id="modal-agents-list"></div>
@@ -158,7 +209,6 @@
 </div>
 
 <script>
-  // Remplace ces valeurs par tes propres identifiants Supabase si besoin
   const SUPABASE_URL = "https://inyonzcwfjhzuzlhumzj.supabase.co";
   const SUPABASE_KEY = "sb_publishable_s_-vJjAZgAbMy27Oh0RDpg_hxcJV1KX";
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -173,7 +223,7 @@
   let agentRates = {}; 
   let openRateAgents = {}; 
 
-  const agentColors = ['#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#06b6d4', '#10b981'];
+  const agentColors = ['#22c55e', '#38bdf8', '#ec4899', '#a78bfa', '#fbbf24', '#06b6d4', '#10b981'];
 
   async function init() {
     await fetchAgents();
@@ -192,9 +242,28 @@
     slots = data || [];
     renderWeek();
     renderSlots();
+    updateHeaderStats();
     if (document.getElementById('total-modal').style.display === 'flex') {
       updateModalContent();
     }
+  }
+
+  function updateHeaderStats() {
+    const startOfWeek = getMonday(currentDate);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+
+    const weekSlots = slots.filter(s => {
+      const d = new Date(s.date_str);
+      return d >= startOfWeek && d <= endOfWeek;
+    });
+
+    const total = weekSlots.length;
+    const covered = weekSlots.filter(s => s.agent_id !== null).length;
+    const percent = total > 0 ? Math.round((covered / total) * 100) : 0;
+
+    document.getElementById('stat-total-slots').innerText = total;
+    document.getElementById('stat-coverage-rate').innerText = `${percent}%`;
   }
 
   function renderWeek() {
@@ -222,7 +291,7 @@
       card.className = `day-card ${dateStr === selectedDateStr ? 'active' : ''}`;
       card.innerHTML = `
         <div style="font-size:0.8rem">${dayName}</div>
-        <strong>${dayNum}</strong>
+        <strong style="font-size: 1.1rem;">${dayNum}</strong>
         <div class="day-progress">
           <div class="day-progress-bar" style="width: ${percent}%;"></div>
         </div>
@@ -244,7 +313,7 @@
     document.getElementById('day-covered-count').innerText = `${covered}/${daySlots.length} couverts`;
 
     if (daySlots.length === 0) {
-      list.innerHTML = `<div style="text-align:center; color:#888; padding:20px; grid-column: 1 / -1;">Aucun créneau ce jour-là.</div>`;
+      list.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:30px; grid-column: 1 / -1;">Aucun créneau planifié pour ce jour.</div>`;
       return;
     }
 
@@ -253,7 +322,7 @@
       card.className = 'slot-card';
       
       let agentOptions = `<option value="">— À pourvoir —</option>`;
-      let selectedAgentColor = '#ccc';
+      let selectedAgentColor = '#64748b';
 
       agents.forEach((a, index) => {
         const isSelected = s.agent_id === a.id;
@@ -460,7 +529,7 @@
       if (s.start && s.end) {
         const [sh, sm] = s.start.split(':').map(Number);
         const [eh, em] = s.end.split(':').map(Number);
-        const diff = (eh * 60 + em) - (sh * 60 + sm) + 30; // +30 min de pointage incluses
+        const diff = (eh * 60 + em) - (sh * 60 + sm) + 30; // +30 min incluses
         if (diff > 0) {
           totalGlobalMins += diff;
           if (s.agent_id !== null && agentHours[s.agent_id]) {
@@ -503,7 +572,7 @@
           if (existingRev) {
             existingRev.innerText = `(${agentRevenueStr} €)`;
           } else {
-            rightContainer.insertAdjacentHTML('beforeend', ` <span style="color: #22c55e; font-size: 0.85rem;" id="agent-rev-${ag.id}">(${agentRevenueStr} €)</span>`);
+            rightContainer.insertAdjacentHTML('beforeend', ` <span style="color: var(--primary); font-size: 0.85rem;" id="agent-rev-${ag.id}">(${agentRevenueStr} €)</span>`);
           }
         } else if (existingRev) {
           existingRev.remove();
@@ -562,7 +631,7 @@
       const activeRate = agentRates[ag.id];
       if (activeRate !== undefined && activeRate >= 0) {
         const agentRevenue = ((ag.minutes / 60) * activeRate).toFixed(2);
-        revenueText = ` <span style="color: #22c55e; font-size: 0.85rem;" id="agent-rev-${ag.id}">(${agentRevenue} €)</span>`;
+        revenueText = ` <span style="color: var(--primary); font-size: 0.85rem;" id="agent-rev-${ag.id}">(${agentRevenue} €)</span>`;
       }
 
       const isOpen = !!openRateAgents[ag.id];
@@ -593,6 +662,33 @@
     updateCalculationsOnlyValues();
   }
 
+  function exportSummary() {
+    const filteredSlots = getFilteredSlots();
+    let agentHours = {};
+    agents.forEach(a => agentHours[a.id] = { name: a.name, minutes: 0 });
+
+    filteredSlots.forEach(s => {
+      if (s.start && s.end && agentHours[s.agent_id]) {
+        const [sh, sm] = s.start.split(':').map(Number);
+        const [eh, em] = s.end.split(':').map(Number);
+        const diff = (eh * 60 + em) - (sh * 60 + sm) + 30;
+        if (diff > 0) agentHours[s.agent_id].minutes += diff;
+      }
+    });
+
+    let text = `📊 Récapitulatif Heures (${document.getElementById('modal-period-label').innerText}):\n`;
+    Object.values(agentHours).forEach(ag => {
+      const h = Math.floor(ag.minutes / 60);
+      const m = ag.minutes % 60;
+      if (ag.minutes > 0) {
+        text += `- ${ag.name}: ${h}h${m < 10 ? '0' : ''}${m}\n`;
+      }
+    });
+
+    navigator.clipboard.writeText(text);
+    alert('Récapitulatif copié dans le presse-papier !');
+  }
+
   function getMonday(d) {
     const date = new Date(d);
     const day = date.getDay();
@@ -603,6 +699,7 @@
   function changeWeek(direction) {
     currentDate.setDate(currentDate.getDate() + (direction * 7));
     renderWeek();
+    updateHeaderStats();
   }
 
   init();
